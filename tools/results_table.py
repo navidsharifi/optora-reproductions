@@ -41,8 +41,8 @@ def _cell(text: str) -> str:
     return text.replace("|", r"\|")
 
 
-def _row(result: ClaimResult) -> tuple[str, ...]:
-    paper = f"[{result.paper_id}](papers/{result.paper_id}/README.md)"
+def _row(result: ClaimResult, link_base: str) -> tuple[str, ...]:
+    paper = f"[{result.paper_id}]({link_base}papers/{result.paper_id}/README.md)"
     return (
         paper,
         result.claim.claim_id,
@@ -57,18 +57,21 @@ def _row(result: ClaimResult) -> tuple[str, ...]:
     )
 
 
-def render_table(results: Sequence[ClaimResult]) -> str:
+def render_table(results: Sequence[ClaimResult], link_base: str = "") -> str:
     """Render records as a Markdown table.
 
     Args:
         results: Records, in the order they should appear.
+        link_base: Prefix of the links to the paper READMEs. Empty gives
+            links relative to the repository root.
 
     Returns:
         The table, or a one-line note when there are no records.
     """
     if not results:
         return EMPTY_TABLE
-    lines = [HEADER, tuple("---" for _ in HEADER), *map(_row, results)]
+    rows = [_row(result, link_base) for result in results]
+    lines = [HEADER, tuple("---" for _ in HEADER), *rows]
     return "\n".join("| " + " | ".join(line) + " |" for line in lines)
 
 
