@@ -1,0 +1,34 @@
+# Private agent instructions and trackers (never commit)
+Claude.md
+CLAUDE.md
+AGENTS.md
+.github/copilot-instructions.md
+.claude/
+plan.md
+progress/
+optora_progress/
+
+# Data and run artifacts
+data/
+runs/
+*.ckpt
+*.pt
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
