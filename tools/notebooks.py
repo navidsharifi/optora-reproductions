@@ -1,20 +1,22 @@
-"""Generate one Google Colab notebook per paper.
+"""Generate the combined Google Colab notebook of all reproductions.
 
-Each notebook is built from the paper's `README.md` and its records in
-`results/`, so it always shows the recorded results without being run.
-Its code cells clone this repository on Colab and rerun the paper there.
-Notebooks are generated files and are never edited by hand.
+The notebook is built from every paper's `README.md` and the records in
+`results/`, so it shows the recorded results without being run. It opens
+with the results table of all papers and one setup cell, followed by one
+section per paper with its report, its recorded results, and cells that
+rerun it on Colab. The notebook is a generated file, never edited by hand.
 
 Usage::
 
-    python -m tools.notebooks          # write notebooks/<paper_id>.ipynb
-    python -m tools.notebooks --check  # exit 1 if a notebook is stale
+    python -m tools.notebooks          # write notebooks/reproductions.ipynb
+    python -m tools.notebooks --check  # exit 1 if the notebook is stale
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -27,30 +29,33 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "navidsharifi/optora-reproductions"
 REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
 BLOB_URL = f"{REPOSITORY_URL}/blob/main/"
-COLAB_URL = f"https://colab.research.google.com/github/{REPOSITORY}/blob/main/"
+NOTEBOOK_NAME = "reproductions.ipynb"
+COLAB_URL = (
+    f"https://colab.research.google.com/github/{REPOSITORY}/blob/main/"
+    f"notebooks/{NOTEBOOK_NAME}"
+)
+CLONE_DIR = "/content/optora-reproductions"
 RERUN_DIR = "runs/colab"
 
+_HEADING = re.compile(r"#{1,5} ")
+
 _SETUP = f"""\
-# Clone the repository and install it with its pinned optora release.
-# Colab already ships a CUDA build of PyTorch, which pip keeps.
-![ -d optora-reproductions ] || git clone --depth 1 {REPOSITORY_URL}.git
-%cd optora-reproductions
+# Clone (or update) the repository and install it with its pinned optora
+# release. Colab already ships a CUDA build of PyTorch, which pip keeps.
+![ -d {CLONE_DIR} ] || git clone --depth 1 {REPOSITORY_URL}.git {CLONE_DIR}
+!git -C {CLONE_DIR} pull --ff-only --quiet
+%cd {CLONE_DIR}
 !pip install --quiet -e .
 
 import optora
 import torch
-
-print("optora", optora.__version__, "| torch", torch.__version__)
-print("GPU:", torch.cuda.get_device_name() if torch.cuda.is_available() else "none")
-"""
-
-_SHOW_RERUN = f"""\
 from IPython.display import Markdown, display
 
 from optora_reproductions.results import read_results
 from tools.results_table import render_table
 
-display(Markdown(render_table(read_results("{RERUN_DIR}"))))
+print("optora", optora.__version__, "| torch", torch.__version__)
+print("GPU:", torch.cuda.get_device_name() if torch.cuda.is_available() else "none")
 """
 
 
@@ -72,8 +77,39 @@ def _code(text: str) -> dict[str, Any]:
     }
 
 
+def _show_rerun(paper_id: str | None) -> str:
+    selection = "" if paper_id is None else f' if r.paper_id == "{paper_id}"'
+    return (
+        f'reruns = [r for r in read_results("{RERUN_DIR}"){selection}]\n'
+        "display(Markdown(render_table(reruns)))\n"
+    )
+
+
+def demote_headings(text: str) -> str:
+    """Move every Markdown heading one level down, outside code fences.
+
+    A paper README starts at level 1. Inside the combined notebook each
+    paper is a level-2 section, so its headings shift by one.
+
+    Args:
+        text: Markdown text.
+
+    Returns:
+        The text with `#` added to each ATX heading of level 1 to 5.
+    """
+    lines = []
+    in_fence = False
+    for line in text.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+        elif not in_fence and _HEADING.match(line):
+            line = "#" + line
+        lines.append(line)
+    return "".join(lines)
+
+
 def paper_ids(papers_dir: str | Path) -> list[str]:
-    """List the papers that get a notebook, skipping `_template`.
+    """List the papers shown in the notebook, skipping `_template`.
 
     Args:
         papers_dir: Folder holding the paper folders.
@@ -90,58 +126,93 @@ def paper_ids(papers_dir: str | Path) -> list[str]:
     )
 
 
-def build_notebook(paper_dir: str | Path, results: Sequence[ClaimResult]) -> str:
-    """Build the notebook of one paper as `.ipynb` JSON text.
+def _paper_cells(paper_dir: Path, results: Sequence[ClaimResult]) -> list[Any]:
+    paper_id = paper_dir.name
+    readme = (paper_dir / "README.md").read_text(encoding="utf-8").strip()
+    recorded = [result for result in results if result.paper_id == paper_id]
+    run = (
+        f"!python -m papers.{paper_id}.run --output-dir {RERUN_DIR} "
+        f"--config papers/{paper_id}/configs"
+    )
+    return [
+        _markdown(demote_headings(readme) + "\n"),
+        _markdown(
+            f"### Recorded results of `{paper_id}`\n\n"
+            + render_table(recorded, link_base=BLOB_URL)
+            + "\n"
+        ),
+        _markdown(
+            f"### Rerun `{paper_id}` on Colab\n\n"
+            "The smoke configuration takes seconds. The full configuration "
+            "repeats the recorded run and can take much longer.\n"
+        ),
+        _code(f"{run}/smoke.toml\n"),
+        _code(f"{run}/full.toml\n"),
+        _code(_show_rerun(paper_id)),
+    ]
+
+
+def build_notebook(
+    paper_dirs: Sequence[str | Path], results: Sequence[ClaimResult]
+) -> str:
+    """Build the combined notebook as `.ipynb` JSON text.
 
     Args:
-        paper_dir: Folder of the paper, named after its paper id.
-        results: Records of every paper; only this paper's are shown.
+        paper_dirs: Folders of the papers to include, in display order,
+            each named after its paper id.
+        results: Records of every paper.
 
     Returns:
         The notebook in nbformat 4 JSON, deterministic for equal inputs.
     """
-    paper_dir = Path(paper_dir)
-    paper_id = paper_dir.name
-    readme = (paper_dir / "README.md").read_text(encoding="utf-8").strip()
-    recorded = [result for result in results if result.paper_id == paper_id]
-    configs = f"papers/{paper_id}/configs"
-    run = (
-        f"!python -m papers.{paper_id}.run --output-dir {RERUN_DIR} --config {configs}"
+    directories = [Path(path) for path in paper_dirs]
+    shown = {directory.name for directory in directories}
+    recorded = [result for result in results if result.paper_id in shown]
+    contents = "".join(f"- `{directory.name}`\n" for directory in directories) or (
+        "No paper has been added yet.\n"
     )
 
     cells = [
         _markdown(
-            f"[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]"
-            f"({COLAB_URL}notebooks/{paper_id}.ipynb)\n\n"
-            f"Generated by `python -m tools.notebooks` from "
-            f"[`papers/{paper_id}/`]({BLOB_URL}papers/{paper_id}) and "
-            f"[`results/`]({BLOB_URL}results) of [{REPOSITORY}]({REPOSITORY_URL}). "
-            "Changes belong in those files, not in this notebook.\n"
+            f"[![Open In Colab](https://colab.research.google.com/assets/"
+            f"colab-badge.svg)]({COLAB_URL})\n\n"
+            "# Optora reproductions\n\n"
+            "Reproductions of published distributionally robust optimization "
+            f"papers with [Optora](https://github.com/navidsharifi/optora). "
+            f"This notebook is generated by `python -m tools.notebooks` from "
+            f"[`papers/`]({BLOB_URL}papers) and [`results/`]({BLOB_URL}results) "
+            f"of [{REPOSITORY}]({REPOSITORY_URL}), so changes belong in those "
+            "files, not here.\n\n"
+            f"Papers in this notebook\n\n{contents}"
         ),
-        _markdown(readme + "\n"),
         _markdown(
             "## Recorded results\n\n"
             + render_table(recorded, link_base=BLOB_URL)
-            + "\n\nThese are the committed records of the full runs. A claim is "
-            "reproduced when the mean over seeds lies within the tolerance "
+            + "\n\nThese are the committed records of the full runs. A claim "
+            "is reproduced when the mean over seeds lies within the tolerance "
             "that was fixed before the run.\n"
         ),
         _markdown(
-            "## Rerun on Colab\n\n"
-            "Choose a GPU runtime (Runtime, Change runtime type) and run the "
-            "cells below. The smoke configuration takes seconds; the full "
-            "configuration repeats the recorded run and can take much longer.\n"
+            "## Setup\n\n"
+            "Choose a GPU runtime (Runtime, Change runtime type), then run the "
+            "cell below once before rerunning any paper.\n"
         ),
         _code(_SETUP),
-        _code(f"{run}/smoke.toml\n"),
-        _code(f"{run}/full.toml\n"),
-        _code(_SHOW_RERUN),
     ]
+    for directory in directories:
+        cells.extend(_paper_cells(directory, results))
+    cells.extend(
+        [
+            _markdown("## All rerun results\n\nEvery claim rerun in this session.\n"),
+            _code(_show_rerun(None)),
+        ]
+    )
+
     notebook = {
         "cells": cells,
         "metadata": {
             "accelerator": "GPU",
-            "colab": {"name": f"{paper_id}.ipynb", "provenance": []},
+            "colab": {"name": NOTEBOOK_NAME, "provenance": []},
             "kernelspec": {"display_name": "Python 3", "name": "python3"},
             "language_info": {"name": "python"},
         },
@@ -151,34 +222,17 @@ def build_notebook(paper_dir: str | Path, results: Sequence[ClaimResult]) -> str
     return json.dumps(notebook, indent=1, ensure_ascii=False) + "\n"
 
 
-def build_all(papers_dir: str | Path, results_dir: str | Path) -> dict[str, str]:
-    """Build the notebooks of every paper.
-
-    Args:
-        papers_dir: Folder holding the paper folders.
-        results_dir: Folder holding the result records.
-
-    Returns:
-        Map from notebook file name to its JSON text.
-    """
-    results = read_results(results_dir)
-    return {
-        f"{paper_id}.ipynb": build_notebook(Path(papers_dir) / paper_id, results)
-        for paper_id in paper_ids(papers_dir)
-    }
-
-
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write or check the notebooks.
+    """Write or check the notebook.
 
     Args:
         argv: Command-line arguments without the program name.
 
     Returns:
-        Exit status, 1 when `--check` finds a stale, missing or orphaned
-        notebook and 0 otherwise.
+        Exit status, 1 when `--check` finds the notebook stale or missing,
+        or another notebook in the output folder, and 0 otherwise.
     """
-    parser = argparse.ArgumentParser(description="Generate the Colab notebooks.")
+    parser = argparse.ArgumentParser(description="Generate the Colab notebook.")
     parser.add_argument("--check", action="store_true", help="fail if stale")
     parser.add_argument("--papers-dir", type=Path, default=REPOSITORY_ROOT / "papers")
     parser.add_argument("--results-dir", type=Path, default=REPOSITORY_ROOT / "results")
@@ -187,29 +241,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    expected = build_all(args.papers_dir, args.results_dir)
-    existing = {path.name for path in args.output_dir.glob("*.ipynb")}
-    orphans = sorted(existing - set(expected))
-    stale = sorted(
-        name
-        for name, text in expected.items()
-        if name not in existing
-        or (args.output_dir / name).read_text(encoding="utf-8") != text
+    papers = [args.papers_dir / paper_id for paper_id in paper_ids(args.papers_dir)]
+    expected = build_notebook(papers, read_results(args.results_dir))
+    path = args.output_dir / NOTEBOOK_NAME
+    stale = not path.exists() or path.read_text(encoding="utf-8") != expected
+    others = sorted(
+        other.name
+        for other in args.output_dir.glob("*.ipynb")
+        if other.name != NOTEBOOK_NAME
     )
 
     if args.check:
-        for name in stale:
-            print(f"{name} is stale or missing, run python -m tools.notebooks")
-        for name in orphans:
-            print(f"{name} has no paper folder")
-        return 1 if stale or orphans else 0
+        if stale:
+            print(f"{path} is stale or missing, run python -m tools.notebooks")
+        for name in others:
+            print(f"{name} is not generated by tools.notebooks")
+        return 1 if stale or others else 0
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    for name in stale:
-        (args.output_dir / name).write_text(expected[name], encoding="utf-8")
-        print(f"wrote {args.output_dir / name}")
-    for name in orphans:
-        print(f"warning: {name} has no paper folder; delete it by hand")
+    if stale:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(expected, encoding="utf-8")
+        print(f"wrote {path}")
+    for name in others:
+        print(f"warning: {name} is not generated by tools.notebooks; delete it by hand")
     return 0
 
 
