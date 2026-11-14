@@ -1,0 +1,7 @@
+# Settings of the full run. For a real paper, take every value from the
+# paper and note its location next to it.
+seeds = [0, 1, 2, 3, 4]
+num_samples = 100_000
+radius_fraction = 0.5
+dtype = "float64"
+device = "cpu"

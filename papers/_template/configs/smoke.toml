@@ -1,0 +1,6 @@
+# A run of a few seconds on CPU, used by the smoke test in CI.
+seeds = [0, 1]
+num_samples = 64
+radius_fraction = 0.5
+dtype = "float64"
+device = "cpu"
