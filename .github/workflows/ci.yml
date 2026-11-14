@@ -38,3 +38,4 @@ jobs:
       - run: mypy
       - run: pytest --cov
       - run: python -m tools.results_table --check
+      - run: python -m tools.notebooks --check

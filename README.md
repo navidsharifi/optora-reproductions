@@ -50,6 +50,7 @@ pytest && ruff check . && ruff format --check . && mypy
 | `papers/<paper_id>/` | One reproduction, with its report in `README.md` |
 | `papers/_template/` | Starting point, copied by `python -m tools.new_paper <paper_id>` |
 | `results/` | One JSON record per reproduced claim |
+| `notebooks/` | One generated Google Colab notebook per paper, with its report and recorded results |
 | `optora_reproductions/` | Shared helpers for settings, seeding and result records |
 | `prototypes/` | Components Optora does not ship yet, kept here until upstreamed |
 | `tools/` | Results table generator and paper scaffolder |
