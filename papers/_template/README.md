@@ -11,14 +11,14 @@ Authors' code, if public, is at <URL> (commit <short hash>).
 
 ## Claim
 
-The claim we reproduce, with its location in the paper (for example
-Table 2, row 3). One claim per row.
+What each claim says and why we chose it. The location, metric, paper
+value and tolerance of every claim are defined once in `claims.py`, which
+is committed before the full run, and they appear in the root results
+table.
 
-| Claim id | Location | Metric | Paper value | Tolerance |
-| --- | --- | --- | --- | --- |
-| c1 | Table _ | _ | _ | _ |
-
-The tolerance is fixed in this file before the full run.
+| Claim id | Statement |
+| --- | --- |
+| c1 | _ |
 
 ## Setup
 
@@ -40,11 +40,8 @@ python -m papers.<id>.run --config papers/<id>/configs/full.toml
 
 ## Result
 
-Generated from `results/<id>.json`.
-
-| Claim id | Paper value | Ours (mean +- std over seeds) | Within tolerance |
-| --- | --- | --- | --- |
-| c1 | _ | _ | _ |
+See the results table in the root `README.md`, generated from
+`results/<id>.<claim_id>.json`.
 
 ## Findings
 
