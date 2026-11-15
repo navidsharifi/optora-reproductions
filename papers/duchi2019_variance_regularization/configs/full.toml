@@ -1,0 +1,14 @@
+# Section 5.2 of Duchi and Namkoong (2019). The paper uses 1,200
+# replications per cell; here 3 seeds x 400 replications.
+seeds = [0, 1, 2]
+replications_per_seed = 400
+sample_sizes = [100, 500, 1000, 5000, 10000]   # Table 1 rows
+noise_levels = [0.01, 0.1, 1.0, 10.0]          # Table 1 columns
+dimension = 50                                 # Section 5.2
+domain_radius = 10.0                           # r = 10, Section 5.2
+delta = 0.05                                   # Section 5.2
+descent_iterations = 500                       # Section 5.1 solver
+subgradient_iterations = 5000                  # Lacoste-Julien et al. (2012) averaging
+chunk_megabytes = 512
+dtype = "float64"
+device = "cuda"

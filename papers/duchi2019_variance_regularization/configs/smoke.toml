@@ -1,0 +1,10 @@
+# A run of a few seconds on CPU, used by the smoke test in CI. It keeps
+# the two cells the claims need (B = 1, n = 100 and n = 1000).
+seeds = [0]
+replications_per_seed = 4
+sample_sizes = [100, 1000]
+noise_levels = [1.0]
+descent_iterations = 100
+subgradient_iterations = 100
+dtype = "float64"
+device = "cpu"
