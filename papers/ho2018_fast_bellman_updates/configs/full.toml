@@ -1,0 +1,9 @@
+# Section 5.1 of Ho, Petrik and Wiesemann (2018).
+seeds = [0, 1, 2, 3, 4]                                         # 5 runs
+state_counts = [50, 100, 150, 200, 250, 300, 350, 400]          # Figure 4 axis
+budgets = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]    # Section 5.1
+discount = 0.9                  # inventory domain, our choice (not stated)
+timing_states = 400             # claim c2
+timing_repeats = 20
+dtype = "float64"
+device = "cpu"
