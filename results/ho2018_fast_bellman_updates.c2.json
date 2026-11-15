@@ -1,0 +1,32 @@
+{
+  "paper_id": "ho2018_fast_bellman_updates",
+  "claim": {
+    "claim_id": "c2",
+    "location": "Section 5.1 and Figure 4 (plain L1, about 1,000 times faster)",
+    "metric": "log10 of LP time over Optora time for one q(xi), S = 400",
+    "paper_value": 3.0,
+    "tolerance": 1.0
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    1.8349125151298644,
+    1.832050026611463,
+    1.815848403996714,
+    1.8376285350028347,
+    1.8360742484069517
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.2.0",
+    "platform": "Windows-11",
+    "device": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel"
+  },
+  "date": "2026-11-15"
+}
