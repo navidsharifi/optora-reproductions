@@ -1,0 +1,32 @@
+{
+  "paper_id": "ho2018_fast_bellman_updates",
+  "claim": {
+    "claim_id": "c1",
+    "location": "Section 5 (the methods are exact)",
+    "metric": "max absolute error of q(xi) against the HiGHS linear program",
+    "paper_value": 0.0,
+    "tolerance": 1e-09
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    1.8474111129762605e-13,
+    1.8474111129762605e-13,
+    1.8474111129762605e-13,
+    1.8474111129762605e-13,
+    1.8474111129762605e-13
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.2.0",
+    "platform": "Windows-11",
+    "device": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel"
+  },
+  "date": "2026-11-15"
+}

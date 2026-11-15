@@ -21,6 +21,8 @@ library are reported on the Optora issue tracker.
 | [duchi2019_variance_regularization](papers/duchi2019_variance_regularization/README.md) | c1 | fraction of replications with robust risk below ERM risk | 1 | 1 (0) | 3 | 0 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.2.0 |
 | [duchi2019_variance_regularization](papers/duchi2019_variance_regularization/README.md) | c2 | mean risk of the robust solution | 6.32e-18 | 0 (0) | 3 | 1e-08 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.2.0 |
 | [duchi2019_variance_regularization](papers/duchi2019_variance_regularization/README.md) | c3 | mean robust risk divided by mean ERM risk | 0.182 | 0.005475 (0.001256) | 3 | 0.05 | no | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.2.0 |
+| [ho2018_fast_bellman_updates](papers/ho2018_fast_bellman_updates/README.md) | c1 | max absolute error of q(xi) against the HiGHS linear program | 0 | 1.847e-13 (0) | 5 | 1e-09 | yes | Intel64 Family 6 Model 154 Stepping 3, GenuineIntel | 0.2.0 |
+| [ho2018_fast_bellman_updates](papers/ho2018_fast_bellman_updates/README.md) | c2 | log10 of LP time over Optora time for one q(xi), S = 400 | 3 | 1.831 (0.008877) | 5 | 1 | no | Intel64 Family 6 Model 154 Stepping 3, GenuineIntel | 0.2.0 |
 <!-- results-table:end -->
 
 The table is generated from `results/` by `python -m tools.results_table`

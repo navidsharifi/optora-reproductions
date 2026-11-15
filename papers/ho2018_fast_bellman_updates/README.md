@@ -1,6 +1,6 @@
 # Fast Bellman updates for robust MDPs
 
-> Status. `in progress`
+> Status. `partially reproduced`
 
 ## Reference
 
@@ -65,4 +65,46 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Pending the full run.
+Full run on 2026-11-15 with Optora 0.2.0, float64, on the laptop CPU with
+nothing else heavy running. It took about three minutes. The complete table
+is in `runs/ho2018_fast_bellman_updates/full_table.md`.
+
+| Claim | Paper | This run (mean over 5 runs, sample std) | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 0 | 1.8e-13 (std 0) | yes |
+| c2 | 3.0 | 1.83 (std 0.009) | no |
+
+Claim c1 reproduces. Over every size, budget and run, Optora's $q(\xi)$
+matches the HiGHS linear program to $6.7\cdot10^{-16}$ in the random domain
+and $1.9\cdot10^{-13}$ in the inventory domain. The inventory error grows
+with $S$ only because the values $z$ grow with $S$ (to a few hundred), so it
+stays within a few units in the last place.
+
+Claim c2 does not reproduce. One $q(\xi)$ at $S = 400$ takes 7.4 ms with
+HiGHS and 0.109 ms with Optora, a speedup of about 68 rather than about
+1,000.
+
+| $S$ | HiGHS ms | Optora ms | Speedup |
+| --- | --- | --- | --- |
+| 50 | 2.20 | 0.092 | 24 |
+| 200 | 4.00 | 0.101 | 40 |
+| 400 | 7.42 | 0.109 | 68 |
+
+The HiGHS time grows with $S$ while the Optora time barely moves, so a
+single Optora call is bound by the fixed cost of about fifteen small eager
+PyTorch operations, not by the $O(S \log S)$ sort. The paper times a C++
+implementation against Gurobi, so its ratio measures a different pair of
+programs, and the gap here is about per-call overhead rather than the
+algorithm.
+
+A post hoc measurement, made after the run and not part of any claim,
+shows what batching does. Evaluating 400 instances at all nine budgets in
+one call costs 22.7 ms on the same CPU, about 6 $\mu$s per $q(\xi)$, which
+is roughly 1,200 times faster than one HiGHS solve at $S = 400$. This is
+how a robust value iteration would call Optora, with every state-action
+pair in one batch, but the pre-registered claim times a single call and
+stays outside its tolerance.
+
+Optora. No mismatch or failure. The per-call overhead was profiled earlier
+(about 15 eager operations of 3-5 $\mu$s each and one sort) and is normal
+for eager PyTorch, so it is recorded here rather than filed.
