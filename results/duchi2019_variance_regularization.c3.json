@@ -1,0 +1,28 @@
+{
+  "paper_id": "duchi2019_variance_regularization",
+  "claim": {
+    "claim_id": "c3",
+    "location": "Table 1, B = 1, n = 100",
+    "metric": "mean robust risk divided by mean ERM risk",
+    "paper_value": 0.182,
+    "tolerance": 0.05
+  },
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "values": [
+    0.004640107766690472,
+    0.0069196788813235795,
+    0.004866393812129347
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.2.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-15"
+}

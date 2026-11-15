@@ -145,6 +145,11 @@ def simulate(config: Config) -> Risks:
                     refined=refined,
                     seconds=time.perf_counter() - start,
                 )
+                print(
+                    f"seed {seed}, n = {num_samples}, B = {noise:g}: "
+                    f"{time.perf_counter() - start:.0f} s, refined {refined}",
+                    flush=True,
+                )
     return risks
 
 

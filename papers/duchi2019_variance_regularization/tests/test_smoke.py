@@ -29,7 +29,16 @@ def test_smoke_run_measures_every_claim() -> None:
 
 
 def test_main_writes_one_record_per_claim(tmp_path: Path) -> None:
-    main(["--config", str(CONFIGS / "smoke.toml"), "--output-dir", str(tmp_path)])
+    main(
+        [
+            "--config",
+            str(CONFIGS / "smoke.toml"),
+            "--output-dir",
+            str(tmp_path),
+            "--table-dir",
+            str(tmp_path / "runs"),
+        ]
+    )
 
     records = read_results(tmp_path)
     assert [record.claim for record in records] == list(CLAIMS)

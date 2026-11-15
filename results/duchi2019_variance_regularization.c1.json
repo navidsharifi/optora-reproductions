@@ -1,0 +1,28 @@
+{
+  "paper_id": "duchi2019_variance_regularization",
+  "claim": {
+    "claim_id": "c1",
+    "location": "Section 5.2 and Figure 2",
+    "metric": "fraction of replications with robust risk below ERM risk",
+    "paper_value": 1.0,
+    "tolerance": 0.0
+  },
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "values": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.2.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-15"
+}

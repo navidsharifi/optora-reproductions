@@ -1,6 +1,6 @@
 # Variance-based regularization with convex objectives
 
-> Status. `in progress`
+> Status. `partially reproduced`
 
 ## Reference
 
@@ -77,10 +77,11 @@ The subgradient phase runs only for replications whose descent point is
 farther than $10^{-10}$ from $v$, and the table in the findings reports
 that share per cell. A descent point at $v$ is kept as it is. This saves
 hours of GPU time and is checked independently. In the solver check, the
-descent phase ended at $v$ in all 400 replications at $n = 1000$ and
-$n = 5000$ (and in none at $n = 100$), and the conic solver puts the
-minimizer at $v$ for every replication it solved at $n = 500$ (20
-replications) and $n = 5000$ (3 replications, risk below $10^{-18}$).
+descent phase ended at $v$ in all 400 replications at $n = 1000$,
+$n = 5000$ and $n = 10^4$ (and in none at $n = 100$), and the conic solver
+puts the minimizer at $v$ for every replication it solved at $n = 500$
+(20 replications), $n = 5000$ and $n = 10^4$ (3 replications each, risk
+below $10^{-18}$).
 
 ## Run
 
@@ -96,4 +97,55 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Pending the full run.
+Full run on 2026-11-15 with Optora 0.2.0, float64, on the RTX 3050. It took
+3.8 hours of GPU time. The complete table is in
+`runs/duchi2019_variance_regularization/full_table.md`, and every risk below
+is a mean over the 1,200 replications of a cell.
+
+| Claim | Paper | This run (mean over seeds, sample std) | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 1.0 | 1.0 (std 0) | yes |
+| c2 | 6.32e-18 | 0 (std 0) | yes |
+| c3 | 0.182 | 0.0055 (std 0.0013) | no |
+
+Claims c1 and c2 reproduce. The robust solution beats ERM in every one of
+the 24,000 replications, and for every $n \ge 500$ the descent phase stops at
+$v$ itself, so no replication there needed the subgradient phase and the
+mean risk is at most $2\cdot10^{-30}$. The paper's $6.32\cdot10^{-18}$ at
+$n = 1000$ is consistent with the same point reached to a looser solver
+tolerance.
+
+Claim c3 does not reproduce, and the gap goes in the direction the solver
+check predicted. At $n = 100$ the ratio of mean robust risk to mean ERM risk
+is
+
+| $B$ | Paper | Exact minimizer (two phases) | Descent phase only |
+| --- | --- | --- | --- |
+| 0.01 | 0.172-0.183 | 0.0057 | 0.516 |
+| 0.1 | 0.172-0.183 | 0.0048 | 0.519 |
+| 1 | 0.182 | 0.0055 | 0.522 |
+| 10 | 0.172-0.183 | 0.0053 | 0.544 |
+
+The ratio barely moves over three orders of magnitude in $B$, in either
+solver column. The ERM scale gap below acts like a smaller $B$, so it is
+unlikely to explain the difference. The
+paper's value lies between the exact minimizer of $R_n$ and the point where
+the Section 5.1 solver stalls. This fits an inexact solve of a nonsmooth
+problem, but without the authors' simulation code we cannot pin down which
+solver or stopping rule gives 0.18. The qualitative conclusion of Section
+5.2 is stronger at the exact minimizer, with about 180 times less risk than
+ERM at $n = 100$ instead of about 5 times.
+
+The ERM column confirms the discrepancy recorded before the run. At
+$B = 1$, $n = 100$ the mean ERM risk is 0.251, against $dB^2/(2n) = 0.25$ for
+the stated setup and 0.042 in Table 1, and the same factor of six holds in
+every cell with $B \ge 0.1$.
+
+Optora. The chi-square worst case matched the conic reference and finite
+differences throughout, and no run failed. The cost was the solve itself.
+The $n = 100$ cells took about 600 seconds for 1,200 replications, most of
+it in 5,000 subgradient steps on a $400 \times 100$ batch, where the
+float64 tilt bisection of Optora 0.2.0 is bound by kernel launches. This
+became Optora issue #108, fixed upstream by an exact sort-based chi-square
+solve after this run. A rerun on a release that includes the fix is the
+natural check of that change.
