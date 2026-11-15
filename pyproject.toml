@@ -32,6 +32,11 @@ Documentation = "https://navidsharifi.github.io/optora/"
 # Domain extras (vision, text, reference solvers, plotting) are added with
 # the first paper that needs them, never ahead of time.
 [project.optional-dependencies]
+# Independent convex solvers that check reproductions on small instances
+# (workflow step 6). Never used by a paper's run itself.
+reference = [
+  "cvxpy>=1.5"
+]
 dev = [
   "pytest>=8",
   "pytest-cov>=6",
