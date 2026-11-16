@@ -1,6 +1,6 @@
 # Data-driven distributionally robust optimization using the Wasserstein metric
 
-> Status. `in progress`
+> Status. `reproduced`
 
 ## Reference
 
@@ -82,4 +82,57 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Not run yet.
+Full run on 2026-11-15 with Optora 0.3.0, float64, on the RTX 3050. It took
+2 hours 12 minutes, about half for each sample size. The complete table is
+in `runs/mohajerin2018_wasserstein_dro/full_table.md`.
+
+| Claim | Paper | This run (mean over 200 simulations, sample std) | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 0 | 1.6e-9 (std 3.6e-9) | yes |
+| c2 | 1.0 | 1.0 (std 0) | yes |
+| c3 | 0.2 | 0.154 (std 0.118) | yes |
+
+All three claims reproduce. At $\varepsilon = 1$ and $N = 300$ the robust
+portfolio is the equally weighted one in every simulation, with the largest
+weight error $3.7\cdot10^{-8}$. HiGHS returns exactly $1/m$ there, and the
+largest distance between our portfolio and the HiGHS one is
+$3.8\cdot10^{-8}$. The certificate holds in all 200 simulations, but this
+is an easy test at this radius. By Corollary 5.1 the radius term alone adds
+$\varepsilon \max_k \lvert a_k\rvert \lVert x\rVert_\infty = 5.1$ to the
+empirical mean, while $J$ of the equally weighted portfolio is $-1.07$.
+
+The sweep at $N = 30$ shows the shape of Figure 5(a).
+
+| $\varepsilon$ | Mean $J$ | 20% quantile | 80% quantile | Reliability |
+| --- | --- | --- | --- | --- |
+| $10^{-4}$ | -1.098 | -1.213 | -1.000 | 0.010 |
+| $10^{-3}$ | -1.106 | -1.222 | -1.005 | 0.010 |
+| $10^{-2}$ | -1.172 | -1.260 | -1.076 | 0.105 |
+| 0.03 | -1.236 | -1.302 | -1.181 | 0.485 |
+| 0.05 | -1.252 | -1.312 | -1.211 | 0.900 |
+| 0.07 | -1.244 | -1.302 | -1.202 | 1.000 |
+| 0.1 | -1.214 | -1.268 | -1.167 | 1.000 |
+| 0.3 | -1.073 | -1.074 | -1.074 | 1.000 |
+| 1 | -1.074 | -1.074 | -1.074 | 1.000 |
+
+The mean $J$ falls until $\varepsilon = 0.05$ and rises after it. From
+$\varepsilon = 0.3$ on, every simulation returns the equally weighted
+portfolio, so the 20% and 80% quantiles coincide at $-1.074$. The
+difference c3 measures is 0.154 on average and positive in 191 of the 200
+simulations. Both mean levels lie a little below the values read from the
+figure (about $-1.0$ at $10^{-4}$ and $-1.2$ at the minimum), which fits a
+reading off a plot, and the difference between them stays inside the
+tolerance. The reliability reaches one at $\varepsilon = 0.07$, slightly
+above the radius of best mean performance.
+
+Every certificate is within $1.6\cdot10^{-6}$ of the HiGHS optimal value,
+at every radius and both sample sizes. So the ellipsoid method on Optora's
+values solves the robust problem to well below the effects the claims
+measure.
+
+Optora. No mismatch or failure. The batched ground cost of #112 let one
+`WassersteinAmbiguitySet` call cover 200 simulations and 37 radii, with a
+peak of 0.81 GB on the GPU. The limit was the dense $n \times n$ cost,
+which rules out the $N = 3000$ panels (about 14.6 GB). A dense cost matrix
+is the standard input of discrete optimal transport, so this is recorded
+here rather than filed.
