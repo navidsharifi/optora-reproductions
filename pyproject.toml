@@ -17,7 +17,7 @@ authors = [
 # the library version it was measured with. Bump only together with a
 # re-run of every reproduction (plan step 5c).
 dependencies = [
-  "optora==0.2.0",
+  "optora==0.3.0",
   "torch>=2.2",
   # PyTorch wheels from the CUDA index do not pull NumPy, and torch warns
   # on import without it.
