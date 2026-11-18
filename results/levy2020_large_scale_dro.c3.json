@@ -1,0 +1,32 @@
+{
+  "paper_id": "levy2020_large_scale_dro",
+  "claim": {
+    "claim_id": "c3",
+    "location": "Table 5, penalized chi-square with lambda = 0.05 (speed-up)",
+    "metric": "full-batch epochs to 2% of opt / best minibatch epochs, penalty",
+    "paper_value": 16.2,
+    "tolerance": 8.1
+  },
+  "seeds": [
+    1,
+    10,
+    100,
+    1000,
+    1337
+  ],
+  "values": [
+    11.571428571428571,
+    11.79611650485437,
+    11.571428571428571,
+    11.462264150943396,
+    11.682692307692308
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-18"
+}

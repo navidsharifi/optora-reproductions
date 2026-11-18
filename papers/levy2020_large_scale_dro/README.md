@@ -1,6 +1,6 @@
 # Large-scale methods for distributionally robust optimization
 
-> Status. `in progress`
+> Status. `partially reproduced`
 
 ## Reference
 
@@ -86,4 +86,96 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Not run yet.
+Full run on 2026-11-18 with Optora 0.4.0, float32, on the RTX 3050. The
+58 runs took 3 hours 17 minutes. The complete table is in
+`runs/levy2020_large_scale_dro/full_table.md` and the training curves are
+in `full_curves.json` next to it.
+
+| Claim | Paper | This run (mean over 5 seeds, sample std) | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 9.0 | 8.73 (std 0.06) | yes |
+| c2 | 9.5 | 9.48 (std 0.28) | yes |
+| c3 | 16.2 | 11.62 (std 0.13) | yes |
+| c4 | 0.2225 | 0.149 (std 0.001) | no |
+
+Three of the four claims reproduce. The optimal training objectives found
+across all runs are 0.4032 for CVaR, 0.1802 for the $\chi^2$ ball and
+0.1303 for the penalized objective, each reached by the full batch. The
+epochs to 2% of these values follow Table 5 closely.
+
+| Objective | Source | $n = 50$ | $n = 500$ | $n = 5000$ | Full batch | Speed-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| CVaR | Table 5 | 189 ± 3 | 115 ± 1 | 193 ± 4 | 1035 | 9.0 |
+| CVaR | ours | 194.8 ± 3.6 | 116.8 ± 0.8 | 195.4 ± 4.9 | 1020 | 8.7 |
+| $\chi^2$ ball | Table 5 | - | 74 ± 1 | 60 ± 3 | 570 | 9.5 |
+| $\chi^2$ ball | ours | not reached | 74.4 ± 0.9 | 60.2 ± 1.8 | 570 | 9.5 |
+| Penalized $\chi^2$ | Table 5 | 107 ± 1 | 104 ± 1 | 131 ± 5 | 1680 | 16.2 |
+| Penalized $\chi^2$ | ours | 107.6 ± 1.1 | 104.6 ± 1.1 | 134.8 ± 5.8 | 1215 | 11.6 |
+
+Every minibatch count is within about one standard deviation of the
+paper. With $n = 50$ the $\chi^2$ ball ends at 0.2060 in every seed,
+above the target of 0.1838, so it never reaches it within 300 epochs.
+Table 5 has no entry there either. This is the bias floor of small batches
+that Figures 3 and 4 show, since the plug-in robust loss of a batch is a
+biased estimate of the robust loss of the population (Section 3,
+Proposition 1).
+
+The one count that does not match is the full batch on the penalized
+objective, 1215 epochs against 1680, and it alone moves c3 from 16.2 to
+11.6. The settings are those of the authors' `mnist_full_batch.yaml`, and
+the minibatch counts for the same objective agree with the paper. Our
+full-batch curve is flat near the optimum and reaches 1%, 1.5% and 2% of
+it at epochs 1680, 1380 and 1215. A paper optimum lower by about 1% would
+explain the full-batch count, but it would also raise our minibatch counts
+to 165, 165 and 193, far from Table 5. So the gap is specific to the full
+batch, and we did not find its cause. c3 still lies within its tolerance.
+
+c4 does not reproduce under the comparison we fixed before the run. In
+every run the worst group is the typed digit 9, as Appendix F.4 says. The
+worst-group test loss at $n = 500$ is 0.348 to 0.350 for CVaR and 0.337 to
+0.340 for both $\chi^2$ objectives. ERM reaches 0.401 to 0.403 with
+$\mu = 10^{-3}$ and 0.451 to 0.456 with $\mu = 10^{-4}$.
+
+| Objective | Reduction against ERM, $\mu = 10^{-3}$ | Reduction against ERM, $\mu = 10^{-4}$ |
+| --- | --- | --- |
+| CVaR | 12.9% to 13.4% | 22.7% to 23.4% |
+| $\chi^2$ ball | 15.5% to 16.0% | 25.2% to 25.7% |
+| Penalized $\chi^2$ | 15.6% to 16.0% | 25.2% to 25.6% |
+
+The pre-registered metric uses the better ERM, the left column, and gives
+0.149. The paper states its range of 17.5% to 27% in Appendix F.5.1
+without naming the ERM run or the epoch, and it reads the range from
+Figure 3, which plots both ERM runs. Our two columns together span 13% to
+26%, close to that range, but this reading was not fixed in advance, so
+it is not counted. The paper also notes that the minibatch methods
+generalize best well before they converge (Appendix F.5.1), while we
+record the group losses after the last epoch only.
+
+The average test metrics agree with Appendix F.5.1 in accuracy but not in
+loss. DRO reaches a test accuracy of 0.970 to 0.973 against 0.969 to 0.972
+for ERM, and a test log loss of 0.086 to 0.094 against 0.096 to 0.100,
+where the paper reports a slightly worse average loss. The test set holds
+8,000 typed digits out of 18,000 against 600 of 60,600 in training
+(Appendix F.1), so the average test loss already weights the minority
+population heavily.
+
+Apart from the first three CVaR runs at $n = 50$, a training step costs
+1.0 to 2.7 ms at every batch size, so the time per epoch follows the
+number of steps. It is about 2.4 s at $n = 50$, 0.19 to 0.24 s at
+$n = 500$ and 0.03 s at $n = 5000$, and one full-batch step takes 5.4 to
+6.5 ms. The same work does not always take the same time on this laptop.
+The first two CVaR seeds at $n = 50$ ran at 0.50 s per epoch, or 0.41 ms
+per step, and the last two at 2.2 s, so these times describe this machine
+only.
+
+Optora. Two problems found before the run were fixed upstream and released
+in 0.4.0. The penalized $\chi^2$ objective was missing (optora#116, now
+`PenalizedChiSquareDRO`), and the minibatch step was bound by kernel
+launches with no tested way to capture it (optora#117, now covered by CUDA
+graph tests and described in `docs/training.md`). In the full run the new
+objective gives the epoch counts of Table 5 at every batch size, and no
+run failed. The captured forward and backward pass alone takes about
+0.14 ms in the optora#117 benchmark, so most of the 2 ms step lies outside
+the captured pass, in the eager Nesterov update, the iterate averaging and
+the batch selection of this reproduction. We did not profile it further,
+and nothing in the run points to a problem in the library.
