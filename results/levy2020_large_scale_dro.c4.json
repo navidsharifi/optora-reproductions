@@ -1,0 +1,32 @@
+{
+  "paper_id": "levy2020_large_scale_dro",
+  "claim": {
+    "claim_id": "c4",
+    "location": "Section 7 and Appendix F.5.1 (17.5% to 27% lower worst-group loss)",
+    "metric": "1 - worst-group test loss of DRO / of the better ERM, mean of 3 losses",
+    "paper_value": 0.2225,
+    "tolerance": 0.0475
+  },
+  "seeds": [
+    1,
+    10,
+    100,
+    1000,
+    1337
+  ],
+  "values": [
+    0.148440946028518,
+    0.14760014734545202,
+    0.15042166356472342,
+    0.15026577094559837,
+    0.1504465204544655
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-18"
+}

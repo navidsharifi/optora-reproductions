@@ -1,0 +1,32 @@
+{
+  "paper_id": "levy2020_large_scale_dro",
+  "claim": {
+    "claim_id": "c1",
+    "location": "Table 5, CVaR with alpha = 0.02 (speed-up over full batch)",
+    "metric": "full-batch epochs to 2% of opt / best minibatch epochs, CVaR",
+    "paper_value": 9.0,
+    "tolerance": 4.5
+  },
+  "seeds": [
+    1,
+    10,
+    100,
+    1000,
+    1337
+  ],
+  "values": [
+    8.717948717948717,
+    8.793103448275861,
+    8.717948717948717,
+    8.64406779661017,
+    8.793103448275861
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-18"
+}

@@ -1,0 +1,13 @@
+# Full run of the Digits experiment (Section 7, Appendix F).
+data = "digits"
+seeds = [1, 10, 100, 1000, 1337]
+batch_sizes = [50, 500, 5000]
+epochs = 300
+full_batch_epochs = 30000
+full_batch_eval_interval = 15
+full_batch_seed = 1
+erm_batch_size = 500
+comparison_batch_size = 500
+typed_train = 600
+device = "cuda"
+cuda_graphs = true
