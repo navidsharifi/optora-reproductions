@@ -1,0 +1,150 @@
+from __future__ import annotations
+
+import dataclasses
+
+import pytest
+import torch
+
+from ..claims import CLAIMS
+from ..config import Config
+from ..model import ERM, FULL_BATCH, NUM_GROUPS, OBJECTIVES, WEIGHT_DECAY, Run, Setting
+from ..run import (
+    Key,
+    claim_values,
+    group_loss_reductions,
+    key,
+    optimum,
+    settings,
+    speed_ups,
+    table,
+    worst_group_loss,
+)
+
+CONFIG = Config(
+    data="synthetic",
+    seeds=(1, 2),
+    batch_sizes=(50, 500),
+    epochs=4,
+    full_batch_epochs=30,
+    full_batch_eval_interval=10,
+)
+
+
+def _run(setting: Setting, values: list[float], worst: float = 1.0) -> Run:
+    group_loss = torch.full((NUM_GROUPS,), 0.5)
+    group_loss[3] = worst
+    return Run(
+        setting=setting,
+        epochs=torch.arange(1, len(values) + 1) * setting.eval_interval,
+        objective=torch.tensor(values),
+        group_loss=group_loss,
+        test_loss=0.5,
+        test_accuracy=0.9,
+        seconds_per_epoch=0.1,
+    )
+
+
+WORST_GROUP = {"cvar": 1.2, "chi_square": 1.28, "penalty": 1.36}
+
+
+def _runs() -> dict[Key, Run]:
+    """Runs whose optimum is 1.0, so the target is 1.02."""
+    curves = {
+        (50, 1): [3.0, 1.5, 1.01, 1.0],
+        (50, 2): [3.0, 2.0, 1.5, 1.2],
+        (500, 1): [3.0, 1.02, 1.0, 1.0],
+        (500, 2): [3.0, 1.5, 1.01, 1.0],
+    }
+    runs: dict[Key, Run] = {}
+    for setting in settings(CONFIG):
+        if setting.objective == ERM:
+            worst = 2.0 if setting.weight_decay == 1e-4 else 1.6
+            runs[key(setting)] = _run(setting, [1.0], worst)
+        elif setting.batch_size == FULL_BATCH:
+            runs[key(setting)] = _run(setting, [5.0, 1.1, 1.0])
+        else:
+            runs[key(setting)] = _run(
+                setting,
+                curves[(setting.batch_size, setting.seed)],
+                WORST_GROUP[setting.objective],
+            )
+    return runs
+
+
+def test_settings_cover_every_run_once() -> None:
+    every = settings(CONFIG)
+    keys = [key(setting) for setting in every]
+
+    assert len(keys) == len(set(keys))
+    assert len(every) == 3 * 2 * 2 + 3 + 2 * 2
+    full = [setting for setting in every if setting.batch_size == FULL_BATCH]
+    assert [setting.objective for setting in full] == list(OBJECTIVES)
+    assert all(setting.epochs == 30 and setting.eval_interval == 10 for setting in full)
+
+
+def test_optimum_is_the_lowest_value_of_any_run_of_the_objective() -> None:
+    assert optimum(_runs(), "cvar") == 1.0
+
+
+def test_speed_up_divides_full_batch_epochs_by_the_best_minibatch() -> None:
+    # The full batch reaches 1.02 at epoch 30. Seed 1 reaches it at epoch 2
+    # with batch 500, and seed 2 at epoch 3 with batch 500.
+    assert speed_ups(CONFIG, _runs(), "cvar") == [15.0, 10.0]
+
+
+def test_a_seed_that_never_reaches_gets_a_lower_bound() -> None:
+    runs = _runs()
+    for size in (50, 500):
+        stuck = runs[("cvar", size, WEIGHT_DECAY, 2)]
+        runs[("cvar", size, WEIGHT_DECAY, 2)] = dataclasses.replace(
+            stuck, objective=torch.full((4,), 9.0)
+        )
+    assert speed_ups(CONFIG, runs, "cvar") == [15.0, 30.0 / 5.0]
+
+
+def test_worst_group_loss_skips_empty_groups() -> None:
+    run = _run(settings(CONFIG)[0], [1.0], worst=0.7)
+    run.group_loss[5] = float("nan")
+    assert worst_group_loss(run) == pytest.approx(0.7)
+
+
+def test_group_loss_reduction_against_the_better_erm() -> None:
+    # The better ERM worst group is 1.6, so the reductions are 0.25, 0.2 and
+    # 0.15, whose mean is 0.2.
+    assert group_loss_reductions(CONFIG, _runs()) == pytest.approx([0.2, 0.2])
+
+
+def test_claim_values_follow_the_order_of_the_claims() -> None:
+    values = claim_values(CONFIG, _runs())
+
+    assert len(values) == len(CLAIMS)
+    assert values[0] == values[1] == values[2] == [15.0, 10.0]
+    assert values[3] == pytest.approx([0.2, 0.2])
+
+
+def test_table_has_one_row_per_objective_and_batch_size() -> None:
+    lines = table(CONFIG, _runs()).splitlines()
+
+    rows = [line for line in lines if line.startswith("| ") and "---" not in line]
+    assert len(rows) == 1 + 3 * 2 + 3 + 2
+    assert lines[-1].startswith("Optimal training objective")
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ({"data": "imagenet"}, "data must be one of"),
+        ({"seeds": ()}, "at least one seed"),
+        ({"batch_sizes": (10,)}, "batch_sizes must be"),
+        ({"comparison_batch_size": 5000}, "comparison_batch_size"),
+        ({"epochs": 0}, "epochs must be at least 1"),
+        ({"full_batch_epochs": 25}, "multiple of"),
+        ({"erm_batch_size": 0}, "must be positive"),
+        ({"cuda_graphs": True}, "needs a CUDA device"),
+    ],
+)
+def test_config_rejects_invalid_settings(
+    change: dict[str, object], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        dataclasses.replace(CONFIG, **change)  # type: ignore[arg-type]

@@ -1,0 +1,9 @@
+# Smoke run on synthetic data, CPU, a few epochs.
+data = "synthetic"
+seeds = [1, 10]
+batch_sizes = [50, 500]
+epochs = 3
+full_batch_epochs = 30
+full_batch_eval_interval = 15
+erm_batch_size = 500
+comparison_batch_size = 500
