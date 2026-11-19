@@ -44,7 +44,7 @@ package itself.
 ```bash
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e ".[dev,vision]"
 python -m papers.<paper_id>.run --config papers/<paper_id>/configs/full.toml
 python -m tools.results_table
 ```

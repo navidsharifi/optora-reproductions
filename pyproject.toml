@@ -39,6 +39,14 @@ reference = [
   "cvxpy>=1.5",
   "scipy>=1.11"
 ]
+# Image models and datasets, first needed by sagawa2020_group_dro
+# (ResNet-50 from torchvision, Waterbirds stored as Parquet). Install
+# torchvision from the same PyTorch index as torch.
+vision = [
+  "torchvision>=0.17",
+  "pyarrow>=15",
+  "pillow>=10"
+]
 dev = [
   "pytest>=8",
   "pytest-cov>=6",

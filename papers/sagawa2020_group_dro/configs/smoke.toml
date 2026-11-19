@@ -1,0 +1,11 @@
+# Smoke run on synthetic images, CPU, random initial weights.
+data = "synthetic"
+seeds = [0]
+early_stopping_seeds = [0, 1]
+epochs = 2
+batch_size = 16
+micro_batch_size = 8
+eval_interval = 1
+precision = "float32"
+pretrained = false
+device = "cpu"

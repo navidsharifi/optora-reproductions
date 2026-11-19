@@ -45,7 +45,7 @@ _SETUP = f"""\
 ![ -d {CLONE_DIR} ] || git clone --depth 1 {REPOSITORY_URL}.git {CLONE_DIR}
 !git -C {CLONE_DIR} pull --ff-only --quiet
 %cd {CLONE_DIR}
-!pip install --quiet -e .
+!pip install --quiet -e ".[vision]"
 
 import optora
 import torch
