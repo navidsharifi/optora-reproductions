@@ -1,6 +1,6 @@
 # Distributionally robust neural networks
 
-> Status. `in progress`
+> Status. `reproduced`
 
 ## Reference
 
@@ -108,4 +108,83 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Not run yet.
+Full run from 2026-11-19 to 2026-11-20 with Optora 0.4.0, bfloat16 autocast,
+on the RTX 3050. The 14 training runs took 12 hours. The complete table is
+in `runs/sagawa2020_group_dro/full_table.md` and the group accuracies of
+every evaluation are in `full_curves.json` next to it.
+
+| Claim | Paper | This run | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 1.0 | 1.000 (seed 0) | yes |
+| c2 | 0.373 | 0.281 (seed 0) | yes |
+| c3 | 0.633 | 0.570 (seed 0) | yes |
+| c4 | 0.793 | 0.672 (mean over 5 seeds, sample std 0.013) | yes |
+| c5 | -0.0015 | 0.0057 (seed 0) | yes |
+
+All five claims reproduce. The table below compares every Waterbirds cell
+of Table 1 with ours, in percent, as paper / ours. The early-stopping cells
+are means over the five seeds.
+
+| Regime | Split | Average, ERM | Average, group DRO | Worst group, ERM | Worst group, group DRO |
+| --- | --- | --- | --- | --- | --- |
+| Standard | Train | 100.0 / 100.0 | 100.0 / 100.0 | 100.0 / 100.0 | 100.0 / 100.0 |
+| Standard | Test | 97.3 / 97.4 | 97.4 / 97.4 | 60.0 / 69.3 | 76.9 / 74.6 |
+| Strong $\ell_2$ | Train | 97.6 / 97.7 | 99.1 / 99.0 | 35.7 / 37.5 | 97.5 / 98.0 |
+| Strong $\ell_2$ | Test | 95.7 / 96.0 | 96.6 / 96.7 | 21.3 / 27.6 | 84.6 / 84.6 |
+| Early stopping | Train | 86.2 / 94.8 | 80.1 / 94.6 | 7.1 / 17.9 | 74.2 / 88.8 |
+| Early stopping | Test | 93.8 / 94.6 | 93.2 / 93.5 | 6.7 / 17.8 | 86.0 / 85.0 |
+
+With the strong $\ell_2$ penalty every cell lies within 2 points of the
+paper except the worst-group test accuracy of ERM, 27.6% against 21.3%.
+That run had not converged. Its worst-group training accuracy grows from
+0% at epoch 10 to between 37.5% and 44.6% after epoch 260, and its
+worst-group test accuracy follows, from 0.3% to 27.6% with a maximum of
+33.0%. Group DRO keeps the worst-group test accuracy between 83.5% and
+87.2% from epoch 30 on. So the runs show the trade-off of Section 3.2
+directly. ERM gives up the waterbirds on land, the smallest training group
+with 56 images, at training and at test time, and group DRO does not.
+
+In the standard regime both methods reach 100% worst-group training
+accuracy by epoch 20, and the average test accuracy stays between 97.0%
+and 97.5% for the whole run. The worst-group test accuracy is not stable.
+Over the 30 evaluations of a single run it ranges from 60.0% to 72.1% for
+ERM and from 72.0% to 78.5% for group DRO, a spread that contains both
+values of Table 1. Our final ERM model lands at 69.3%, near the top of its
+range, which is why c2 comes out at 0.281 rather than 0.373. In every
+evaluation but one the worst test group is the waterbirds on land, which
+the models fit perfectly in training. This is the generalization gap on
+the worst group that Section 3.1 describes.
+
+With early stopping, group DRO matches the test cells of the paper within
+1 point, a worst-group accuracy of 85.0% (sample std 1.1) against 86.0%.
+ERM keeps more of the worst group than in the paper, 17.8% (sample std
+1.0) against 6.7% at test, and this lowers c4 to 0.672, with all five
+seeds between 0.650 and 0.682. We did not isolate the cause. A model
+trained for one epoch depends on its 38 steps, so the data order, batch
+normalization over micro-batches of 64 and bfloat16 can all move it, and
+Table 1 reports a single run. The training cells differ more, 94.8%
+against 86.2% for the average accuracy of ERM, because we evaluate the
+final model in evaluation mode while the authors' logs average the
+accuracy over the epoch in training mode, starting from a random head. We
+recorded this choice before the run.
+
+The average test accuracy of group DRO stays close to that of ERM in both
+regularized regimes. It is 0.7 points higher with the strong penalty (0.9
+in the paper) and 1.1 points lower with early stopping over five seeds
+(0.6 in the paper), in line with the small drop of 1 to 3% that Section
+3.2 reports. c5 uses seed 0 alone, where the early-stopping drop is 1.8
+points.
+
+An epoch of training took 27.5 s for ERM and 38.5 s for group DRO,
+without evaluation, about 10% slower than in the pilot. The GPU stayed at
+its power limit of about 45 W at 69 degrees Celsius, with no thermal slowdown reported
+by `nvidia-smi` during the run. The pass without gradients makes a group
+DRO step about 40% more expensive than an ERM step.
+
+Optora. `OnlineGroupDRO` and `optora.dro.group_losses` from 0.4.0 were used
+unchanged, and no run failed. The one gap found before the run was that
+the documentation did not say how to combine the online update with
+gradient accumulation over micro-batches (optora#120). The recipe used
+here, with a test of the accumulated gradient, is now in the Group DRO
+section of `docs/training.md` (optora#121). Nothing in the run points to a
+problem in the library.

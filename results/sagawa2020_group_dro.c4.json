@@ -1,0 +1,32 @@
+{
+  "paper_id": "sagawa2020_group_dro",
+  "claim": {
+    "claim_id": "c4",
+    "location": "Table 1, Waterbirds, early stopping after 1 epoch (86.0 vs 6.7)",
+    "metric": "group DRO minus ERM worst-group test accuracy, early stopping",
+    "paper_value": 0.793,
+    "tolerance": 0.2
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    0.6791277378797531,
+    0.6697819083929062,
+    0.6791277378797531,
+    0.6495327055454254,
+    0.6822430193424225
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-20"
+}

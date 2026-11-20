@@ -30,6 +30,11 @@ library are reported on the Optora issue tracker.
 | [mohajerin2018_wasserstein_dro](papers/mohajerin2018_wasserstein_dro/README.md) | c1 | max_i \|x_N(eps)_i - 1/m\| at eps = 1, N = 300 | 0 | 1.621e-09 (3.644e-09) | 200 | 0.001 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.3.0 |
 | [mohajerin2018_wasserstein_dro](papers/mohajerin2018_wasserstein_dro/README.md) | c2 | indicator of J(x_N) <= J_N(eps) at eps = 1, N = 300 | 1 | 1 (0) | 200 | 0.02 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.3.0 |
 | [mohajerin2018_wasserstein_dro](papers/mohajerin2018_wasserstein_dro/README.md) | c3 | J at eps = 1e-4 minus J at the radius of lowest mean J, N = 30 | 0.2 | 0.154 (0.1184) | 200 | 0.1 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.3.0 |
+| [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c1 | min over ERM and group DRO of the worst-group training accuracy | 1 | 1 (0) | 1 | 0.01 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c2 | ERM average test accuracy minus worst-group test accuracy | 0.373 | 0.2812 (0) | 1 | 0.15 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c3 | group DRO minus ERM worst-group test accuracy, strong L2 penalty | 0.633 | 0.5701 (0) | 1 | 0.2 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c4 | group DRO minus ERM worst-group test accuracy, early stopping | 0.793 | 0.672 (0.01338) | 5 | 0.2 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c5 | ERM minus group DRO average test accuracy, mean of the two regimes | -0.0015 | 0.00566 (0) | 1 | 0.03 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
 <!-- results-table:end -->
 
 The table is generated from `results/` by `python -m tools.results_table`
