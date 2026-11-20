@@ -1,0 +1,13 @@
+# Smoke run on random images and a small synthetic sample, CPU.
+data = "random"
+seeds = [0, 1]
+epochs = 1
+batch_size = 16
+synthetic_size = 200
+synthetic_epochs = 2
+synthetic_batch_size = 50
+num_penalties = 6
+num_l2_radii = 2
+num_linf_radii = 3
+eval_batch_size = 32
+device = "cpu"
