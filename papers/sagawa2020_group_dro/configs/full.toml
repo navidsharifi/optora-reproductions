@@ -1,0 +1,12 @@
+# Full run on Waterbirds, Table 1 of Sagawa et al. (2020), on the GPU.
+# One seed per 300-epoch cell as in the paper, five for early stopping.
+data = "waterbirds"
+seeds = [0]
+early_stopping_seeds = [0, 1, 2, 3, 4]
+epochs = 300
+batch_size = 128
+micro_batch_size = 64
+eval_interval = 10
+precision = "bfloat16"
+pretrained = true
+device = "cuda"

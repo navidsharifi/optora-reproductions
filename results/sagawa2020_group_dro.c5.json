@@ -1,0 +1,24 @@
+{
+  "paper_id": "sagawa2020_group_dro",
+  "claim": {
+    "claim_id": "c5",
+    "location": "Table 1, Waterbirds, strong L2 and early stopping, average test",
+    "metric": "ERM minus group DRO average test accuracy, mean of the two regimes",
+    "paper_value": -0.0015,
+    "tolerance": 0.03
+  },
+  "seeds": [
+    0
+  ],
+  "values": [
+    0.005659759044647217
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-20"
+}

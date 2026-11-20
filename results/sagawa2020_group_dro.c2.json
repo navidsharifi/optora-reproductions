@@ -1,0 +1,24 @@
+{
+  "paper_id": "sagawa2020_group_dro",
+  "claim": {
+    "claim_id": "c2",
+    "location": "Table 1, Waterbirds, standard regularization, ERM (97.3 vs 60.0)",
+    "metric": "ERM average test accuracy minus worst-group test accuracy",
+    "paper_value": 0.373,
+    "tolerance": 0.15
+  },
+  "seeds": [
+    0
+  ],
+  "values": [
+    0.2811974287033081
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-20"
+}

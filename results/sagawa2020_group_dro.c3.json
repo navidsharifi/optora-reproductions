@@ -1,0 +1,24 @@
+{
+  "paper_id": "sagawa2020_group_dro",
+  "claim": {
+    "claim_id": "c3",
+    "location": "Table 1, Waterbirds, strong L2 penalty lambda = 1 (84.6 vs 21.3)",
+    "metric": "group DRO minus ERM worst-group test accuracy, strong L2 penalty",
+    "paper_value": 0.633,
+    "tolerance": 0.2
+  },
+  "seeds": [
+    0
+  ],
+  "values": [
+    0.5700934529304504
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-20"
+}
