@@ -15,7 +15,10 @@ and cells that rerun its smoke and full configurations. The recorded
 results are visible without running anything.
 
 The notebook is built from `papers/<paper_id>/README.md` and `results/`,
-so edit those files and regenerate rather than editing the notebook.
+so edit those files and regenerate rather than editing the notebook. The
+figures of a report are not stored in the notebook. Their links point to
+`papers/<paper_id>/figures/` on the `main` branch, so a new figure shows
+up once its pull request is merged.
 
 To use it in Colab, open
 [the notebook from GitHub](https://colab.research.google.com/github/navidsharifi/optora-reproductions/blob/main/notebooks/reproductions.ipynb)

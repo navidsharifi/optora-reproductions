@@ -106,6 +106,10 @@ The full run saves every finished training run under
 See the results table in the root `README.md`, generated from
 `results/sagawa2020_group_dro.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/sagawa2020_group_dro.json`.
+
 ## Findings
 
 Full run from 2026-11-19 to 2026-11-20 with Optora 0.4.0, bfloat16 autocast,
@@ -134,6 +138,14 @@ are means over the five seeds.
 | Early stopping | Train | 86.2 / 94.8 | 80.1 / 94.6 | 7.1 / 17.9 | 74.2 / 88.8 |
 | Early stopping | Test | 93.8 / 94.6 | 93.2 / 93.5 | 6.7 / 17.8 | 86.0 / 85.0 |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/test_accuracy-dark.svg">
+  <img alt="Average and worst-group test accuracy of ERM and group DRO in the three regimes. The average accuracies agree within two points, while the worst-group accuracy of ERM falls to 27.6% and 17.8% under the two regularized regimes and that of group DRO stays near 85%." src="figures/test_accuracy-light.svg">
+</picture>
+
+The figure shows our test cells of the table. The early-stopping bars
+carry one sample standard deviation over the five seeds.
+
 With the strong $\ell_2$ penalty every cell lies within 2 points of the
 paper except the worst-group test accuracy of ERM, 27.6% against 21.3%.
 That run had not converged. Its worst-group training accuracy grows from
@@ -143,6 +155,14 @@ worst-group test accuracy follows, from 0.3% to 27.6% with a maximum of
 87.2% from epoch 30 on. So the runs show the trade-off of Section 3.2
 directly. ERM gives up the waterbirds on land, the smallest training group
 with 56 images, at training and at test time, and group DRO does not.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/worst_group_by_epoch-dark.svg">
+  <img alt="Worst-group test accuracy of ERM and group DRO at each of the 30 evaluations of the standard and the strong penalty runs." src="figures/worst_group_by_epoch-light.svg">
+</picture>
+
+The figure follows the worst-group test accuracy over the 300 epochs
+of the four long runs.
 
 In the standard regime both methods reach 100% worst-group training
 accuracy by epoch 20, and the average test accuracy stays between 97.0%

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 
 import pytest
 import torch
@@ -11,6 +12,7 @@ from ..model import ERM, FULL_BATCH, NUM_GROUPS, OBJECTIVES, WEIGHT_DECAY, Run, 
 from ..run import (
     Key,
     claim_values,
+    curve_record,
     epoch_table,
     group_loss_reduction_curves,
     group_loss_reductions,
@@ -208,3 +210,38 @@ def test_config_rejects_invalid_settings(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         dataclasses.replace(CONFIG, **change)  # type: ignore[arg-type]
+
+
+def test_curve_record_holds_the_series_of_both_figures() -> None:
+    runs = _runs()
+
+    record = curve_record(CONFIG, runs)
+
+    assert record["epochs"] == [1, 2, 3, 4]
+    assert list(record["epochs_to_optimum"]) == list(OBJECTIVES)
+    for objective in OBJECTIVES:
+        reached = record["epochs_to_optimum"][objective]
+        assert reached["batch_size"] == [50, 500, FULL_BATCH]
+        assert reached["epochs"] == [[3, 5], [2, 3], [30]]
+    assert list(record["worst_group_loss"]) == [
+        *OBJECTIVES,
+        "erm mu=0.0001",
+        "erm mu=0.001",
+    ]
+    for objective in OBJECTIVES:
+        assert record["worst_group_loss"][objective] == pytest.approx(
+            [WORST_GROUP[objective]] * 4
+        )
+    reductions = group_loss_reduction_curves(CONFIG, runs)
+    assert record["reduction_mean"] == pytest.approx(reductions.mean(dim=0).tolist())
+    assert record["reduction_mean"] == pytest.approx([0.2] * 4)
+    assert record["reduction_std"] == pytest.approx([0.0] * 4, abs=1e-12)
+
+
+def test_curve_record_of_a_single_seed_has_no_spread_and_is_finite() -> None:
+    config = dataclasses.replace(CONFIG, seeds=(1,))
+
+    record = curve_record(config, _runs())
+
+    assert record["reduction_std"] == [0.0] * 4
+    json.dumps(record, allow_nan=False)

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import partial
@@ -18,7 +19,12 @@ from pathlib import Path
 import torch
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -180,8 +186,36 @@ def run(config: Config) -> list[ClaimResult]:
     ]
 
 
-def table(config: Config, measurements: Measurements) -> str:
+def curve_record(config: Config, measurements: Measurements) -> dict[str, list[float]]:
     """Summarize errors and timings per number of states, like Figure 4.
+
+    Args:
+        config: Settings of the run.
+        measurements: Output of `measure`.
+
+    Returns:
+        The numbers of states in increasing order and, for each of them, the
+        worst error over seeds on both instances and the mean HiGHS and
+        Optora times over seeds, in seconds.
+    """
+    state_counts = sorted({n for _, n in measurements})
+    rows = [
+        [measurements[(seed, num_states)] for seed in config.seeds]
+        for num_states in state_counts
+    ]
+    return {
+        "num_states": [float(num_states) for num_states in state_counts],
+        "random_error": [max(m.random_error for m in row) for row in rows],
+        "inventory_error": [max(m.inventory_error for m in row) for row in rows],
+        "lp_seconds": [statistics.fmean(m.lp_seconds for m in row) for row in rows],
+        "optora_seconds": [
+            statistics.fmean(m.optora_seconds for m in row) for row in rows
+        ],
+    }
+
+
+def table(config: Config, measurements: Measurements) -> str:
+    """Format `curve_record` as a Markdown table.
 
     Args:
         config: Settings of the run.
@@ -195,20 +229,18 @@ def table(config: Config, measurements: Measurements) -> str:
         "| speedup |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
-    for num_states in sorted({n for _, n in measurements}):
-        rows = [measurements[(seed, num_states)] for seed in config.seeds]
-        lp = sum(m.lp_seconds for m in rows) / len(rows)
-        fast = sum(m.optora_seconds for m in rows) / len(rows)
+    for num_states, random_error, inventory_error, lp, fast in zip(
+        *curve_record(config, measurements).values(), strict=True
+    ):
         lines.append(
-            f"| {num_states} | {max(m.random_error for m in rows):.2e} | "
-            f"{max(m.inventory_error for m in rows):.2e} | {1e3 * lp:.3f} | "
-            f"{1e3 * fast:.3f} | {lp / fast:.1f} |"
+            f"| {num_states:g} | {random_error:.2e} | {inventory_error:.2e} | "
+            f"{1e3 * lp:.3f} | {1e3 * fast:.3f} | {lp / fast:.1f} |"
         )
     return "\n".join(lines)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Parse the command line, run, and write the records and the table.
+    """Parse the command line, run, and write the records, curves and table.
 
     Args:
         argv: Command-line arguments without the program name.
@@ -228,6 +260,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         summary + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(config, measurements), args.output_dir)
     for claim, claim_value in zip(CLAIMS, values, strict=True):
         result = make_result(PAPER_ID, claim, config.seeds, claim_value, "cpu")
         path = write_result(result, args.output_dir)

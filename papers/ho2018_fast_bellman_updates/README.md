@@ -63,6 +63,10 @@ python -m papers.ho2018_fast_bellman_updates.run --config papers/ho2018_fast_bel
 See the results table in the root `README.md`, generated from
 `results/ho2018_fast_bellman_updates.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/ho2018_fast_bellman_updates.json`.
+
 ## Findings
 
 Full run on 2026-11-15 with Optora 0.2.0, float64, on the laptop CPU with
@@ -89,6 +93,15 @@ HiGHS and 0.109 ms with Optora, a speedup of about 68 rather than about
 | 50 | 2.20 | 0.092 | 24 |
 | 200 | 4.00 | 0.101 | 40 |
 | 400 | 7.42 | 0.109 | 68 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/bellman_update-dark.svg">
+  <img alt="Left, the largest error of Optora against the HiGHS linear program for each number of states, more than three orders of magnitude below the tolerance of claim c1. Right, the time of one call for HiGHS and for Optora against the number of states." src="figures/bellman_update-light.svg">
+</picture>
+
+The left panel shows the largest error over both domains for each $S$,
+and the right panel the two times of the table for every $S$ of the
+run.
 
 The HiGHS time grows with $S$ while the Optora time barely moves, so a
 single Optora call is bound by the fixed cost of about fifteen small eager

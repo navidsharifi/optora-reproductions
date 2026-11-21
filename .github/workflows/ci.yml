@@ -18,7 +18,8 @@ env:
   PIP_RETRIES: "10"
 
 jobs:
-  # Lint, types, every paper's smoke test on CPU, and the results table.
+  # Lint, types, every paper's smoke test on CPU, and the generated files
+  # (results table, report figures, Colab notebook).
   # Full runs are local; their records are committed under results/.
   checks:
     name: ci
@@ -31,11 +32,12 @@ jobs:
           cache: pip
       - run: python -m pip install -U pip
       - run: python -m pip install torch torchvision --index-url ${{ env.TORCH_INDEX_URL }}
-      - run: python -m pip install -e ".[dev,reference,vision]"
+      - run: python -m pip install -e ".[dev,reference,vision,plot]"
       - run: python -c "import optora, torch; print('optora', optora.__version__, 'torch', torch.__version__)"
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy
       - run: pytest --cov
       - run: python -m tools.results_table --check
+      - run: python -m tools.figures --check
       - run: python -m tools.notebooks --check

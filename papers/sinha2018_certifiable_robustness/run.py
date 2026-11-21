@@ -16,6 +16,7 @@ import argparse
 import dataclasses
 import json
 import math
+import statistics
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -27,7 +28,12 @@ import torch
 from torch import nn
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -461,6 +467,67 @@ def table(results: dict[int, SeedResult]) -> str:
     return "\n".join(lines)
 
 
+def _certificate(certificate: WorstCase, test: Sequence[WorstCase]) -> dict[str, Any]:
+    return {
+        "penalty": certificate.penalty,
+        "distance": certificate.distance,
+        "loss": certificate.loss,
+        "test_distance": [point.distance for point in test],
+        "test_loss": [point.loss for point in test],
+    }
+
+
+def curve_record(results: dict[int, SeedResult]) -> dict[str, Any]:
+    r"""Return the series behind the figures of the report.
+
+    Args:
+        results: Result of every seed.
+
+    Returns:
+        `l2` and `linf` hold the attack radii, divided by $C_2$ and
+        $C_\infty$, the mean test error of every method over the seeds at
+        those radii, and the radius at which claims c4 and c5 read the
+        error. `mnist` and `synthetic` hold, for every seed, the
+        penalty, robustness level and loss of the WRM certificate and the
+        test worst-case curve of the WRM model.
+    """
+    seeds = [results[seed] for seed in sorted(results)]
+
+    def attack(name: str, scale: float) -> dict[str, Any]:
+        curves = {
+            method: [getattr(seed.methods[method], name) for seed in seeds]
+            for method in seeds[0].methods
+        }
+        return {
+            "radius": [radius / scale for radius, _ in curves[WRM][0]],
+            "error": {
+                method: [
+                    statistics.fmean(error for _, error in point)
+                    for point in zip(*per_seed, strict=True)
+                ]
+                for method, per_seed in curves.items()
+            },
+        }
+
+    return {
+        "l2": attack("l2_errors", seeds[0].l2_scale)
+        | {
+            "claim_radius": statistics.fmean(seed.radius for seed in seeds)
+            / seeds[0].l2_scale
+        },
+        "linf": attack("linf_errors", seeds[0].linf_scale)
+        | {"claim_radius": LINF_CLAIM},
+        "mnist": [
+            _certificate(seed.certificate, seed.methods[WRM].worst_cases)
+            for seed in seeds
+        ],
+        "synthetic": [
+            _certificate(seed.synthetic.certificate, seed.synthetic.worst_cases)
+            for seed in seeds
+        ],
+    }
+
+
 def run(config: Config, cache_dir: Path | None = None) -> list[ClaimResult]:
     """Measure and build one record per claim.
 
@@ -502,6 +569,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         summary + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(results), args.output_dir)
     seeds = tuple(sorted(results))
     for claim, values in zip(CLAIMS, per_claim(results), strict=True):
         result = make_result(PAPER_ID, claim, seeds, values, config.device)

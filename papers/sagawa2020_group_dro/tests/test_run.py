@@ -20,7 +20,16 @@ from ..model import (
     Run,
     Setting,
 )
-from ..run import Key, claim_seeds, claim_values, key, measure, settings, table
+from ..run import (
+    Key,
+    claim_seeds,
+    claim_values,
+    curve_record,
+    key,
+    measure,
+    settings,
+    table,
+)
 
 CONFIG = Config(
     data="synthetic",
@@ -185,3 +194,21 @@ def test_config_rejects_invalid_settings(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         dataclasses.replace(CONFIG, **change)  # type: ignore[arg-type]
+
+
+def test_curve_record_holds_the_test_accuracies_of_every_seed() -> None:
+    record = curve_record(CONFIG, _runs())
+
+    assert set(record) == {STANDARD, STRONG_L2, EARLY_STOPPING}
+    assert all(set(methods) == {ERM, GROUP_DRO} for methods in record.values())
+    standard = record[STANDARD][ERM]
+    assert standard["epochs"] == [CONFIG.epochs]
+    assert standard["worst_test"] == [[pytest.approx(0.6)]] * len(CONFIG.seeds)
+    assert standard["average_test"] == [
+        [pytest.approx(_average([0.99, 0.8, 0.6, 0.95]))]
+    ] * len(CONFIG.seeds)
+    early = record[EARLY_STOPPING][GROUP_DRO]
+    assert early["epochs"] == [1]
+    assert early["worst_test"] == [[pytest.approx(0.85)]] * len(
+        CONFIG.early_stopping_seeds
+    )

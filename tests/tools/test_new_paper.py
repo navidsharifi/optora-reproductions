@@ -44,7 +44,7 @@ def test_copy_runs_without_edits(tmp_path: Path) -> None:
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    assert "3 passed" in completed.stdout
+    assert "4 passed" in completed.stdout
     assert destination.joinpath("__init__.py").exists()
 
 

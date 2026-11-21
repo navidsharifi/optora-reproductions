@@ -15,7 +15,9 @@ from optora_reproductions.results import (
     Environment,
     capture_environment,
     make_result,
+    read_curves,
     read_results,
+    write_curves,
     write_result,
 )
 
@@ -193,3 +195,40 @@ class TestStorage:
         (tmp_path / "wrong.json").write_text(result().to_json(), encoding="utf-8")
         with pytest.raises(ValueError, match="holds the record"):
             read_results(tmp_path)
+
+
+class TestCurves:
+    CURVES = {"epochs": [1, 2], "loss": {"erm": [0.5, 0.25]}}
+
+    def test_round_trip(self, tmp_path: Path) -> None:
+        path = write_curves("author2020_topic", self.CURVES, tmp_path)
+
+        assert path == tmp_path / "curves" / "author2020_topic.json"
+        assert read_curves("author2020_topic", tmp_path) == self.CURVES
+
+    def test_write_replaces_earlier_record(self, tmp_path: Path) -> None:
+        write_curves("author2020_topic", self.CURVES, tmp_path)
+        write_curves("author2020_topic", {"epochs": [3]}, tmp_path)
+
+        assert read_curves("author2020_topic", tmp_path) == {"epochs": [3]}
+
+    def test_read_returns_none_without_a_record(self, tmp_path: Path) -> None:
+        write_curves("author2020_topic", self.CURVES, tmp_path)
+
+        assert read_curves("other2021_topic", tmp_path) is None
+        assert read_curves("author2020_topic", tmp_path / "missing") is None
+
+    def test_curve_records_stay_out_of_the_claim_records(self, tmp_path: Path) -> None:
+        write_result(result(), tmp_path)
+        write_curves("author2020_topic", self.CURVES, tmp_path)
+
+        assert read_results(tmp_path) == [result()]
+
+    @pytest.mark.parametrize("value", [math.nan, math.inf])
+    def test_write_rejects_nonfinite_values(self, tmp_path: Path, value: float) -> None:
+        with pytest.raises(ValueError):
+            write_curves("author2020_topic", {"loss": [value]}, tmp_path)
+
+    def test_write_rejects_invalid_paper_id(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="paper_id"):
+            write_curves("../escape", self.CURVES, tmp_path)

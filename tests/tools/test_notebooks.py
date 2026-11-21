@@ -13,7 +13,9 @@ from tools.notebooks import (
     BLOB_URL,
     COLAB_URL,
     NOTEBOOK_NAME,
+    RAW_URL,
     RERUN_DIR,
+    absolute_figures,
     build_notebook,
     demote_headings,
     main,
@@ -229,3 +231,42 @@ def test_other_notebook_fails_check_and_is_kept(
 
 def test_repository_notebook_is_current() -> None:
     assert main(["--check"]) == 0
+
+
+def test_absolute_figures_rewrites_markdown_and_html_links() -> None:
+    text = (
+        "![alt](figures/loss-light.svg)\n"
+        '<source srcset="figures/loss-dark.svg">\n'
+        '<img alt="alt" src="figures/loss-light.svg">\n'
+    )
+    base = f"{RAW_URL}papers/{FIRST}/figures/"
+
+    assert absolute_figures(text, FIRST) == (
+        f"![alt]({base}loss-light.svg)\n"
+        f'<source srcset="{base}loss-dark.svg">\n'
+        f'<img alt="alt" src="{base}loss-light.svg">\n'
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "see `figures/loss-light.svg` in the folder\n",
+        "the figures/ folder holds every file\n",
+        "![alt](https://example.org/figures/loss-light.svg)\n",
+        "![alt](figures/notes.md)\n",
+    ],
+)
+def test_absolute_figures_keeps_other_text(text: str) -> None:
+    assert absolute_figures(text, FIRST) == text
+
+
+def test_notebook_shows_the_figures_of_a_report(papers_dir: Path) -> None:
+    readme = papers_dir / FIRST / "README.md"
+    with readme.open("a", encoding="utf-8") as file:
+        file.write("\n![loss by epoch](figures/loss-light.svg)\n")
+
+    report = text_of(cells(build(papers_dir, []))[4])
+
+    assert f"]({RAW_URL}papers/{FIRST}/figures/loss-light.svg)" in report
+    assert "](figures/" not in report

@@ -17,7 +17,12 @@ from pathlib import Path
 import torch
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -196,7 +201,19 @@ def run(config: Config) -> list[ClaimResult]:
     ]
 
 
-def table(config: Config, risks: Risks) -> str:
+CURVE_COLUMNS = (
+    "num_samples",
+    "noise",
+    "erm",
+    "descent",
+    "robust",
+    "wins",
+    "refined",
+    "seconds",
+)
+
+
+def curve_record(config: Config, risks: Risks) -> dict[str, list[float]]:
     """Summarize the grid like Table 1 of the paper.
 
     Args:
@@ -204,35 +221,67 @@ def table(config: Config, risks: Risks) -> str:
         risks: Output of `simulate`.
 
     Returns:
-        Markdown table of mean risks over all seeds and replications (ERM,
-        the descent phase alone, and the robust solution), the share of
-        replications where the robust solution beats ERM, the share that
-        needed the subgradient phase, and the time spent in robust solves.
+        One entry per grid cell under each name of `CURVE_COLUMNS`, sample
+        sizes in the outer order and noise levels in the inner one. The
+        cell's `num_samples` and `noise`, the mean risk over all seeds and
+        replications of ERM (`erm`), of the descent phase alone (`descent`)
+        and of the robust solution (`robust`), the share of replications
+        where the robust solution beats ERM (`wins`), the share that needed
+        the subgradient phase (`refined`), and the time spent in robust
+        solves (`seconds`).
     """
-    lines = [
-        "| n | B | mean R(erm) | mean R(descent only) | mean R(rob) | rob < erm "
-        "| refined | seconds |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
-    ]
+    rows = []
     for num_samples in config.sample_sizes:
         for noise in config.noise_levels:
             cells = [risks[(seed, num_samples, noise)] for seed in config.seeds]
             erm = torch.cat([cell.erm for cell in cells])
             descent = torch.cat([cell.descent for cell in cells])
             robust = torch.cat([cell.robust for cell in cells])
-            wins = (robust < erm).double().mean().item()
-            refined = sum(cell.refined for cell in cells) / erm.numel()
-            seconds = sum(cell.seconds for cell in cells)
-            lines.append(
-                f"| {num_samples} | {noise:g} | {erm.mean().item():.3e} | "
-                f"{descent.mean().item():.3e} | {robust.mean().item():.3e} | "
-                f"{wins:.4f} | {refined:.4f} | {seconds:.1f} |"
+            rows.append(
+                (
+                    float(num_samples),
+                    noise,
+                    erm.mean().item(),
+                    descent.mean().item(),
+                    robust.mean().item(),
+                    (robust < erm).double().mean().item(),
+                    sum(cell.refined for cell in cells) / erm.numel(),
+                    sum(cell.seconds for cell in cells),
+                )
             )
+    return {
+        name: list(column)
+        for name, column in zip(CURVE_COLUMNS, zip(*rows, strict=True), strict=True)
+    }
+
+
+def table(config: Config, risks: Risks) -> str:
+    """Format `curve_record` as a Markdown table.
+
+    Args:
+        config: Settings of the run.
+        risks: Output of `simulate`.
+
+    Returns:
+        Markdown table with one row per grid cell.
+    """
+    lines = [
+        "| n | B | mean R(erm) | mean R(descent only) | mean R(rob) | rob < erm "
+        "| refined | seconds |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for num_samples, noise, erm, descent, robust, wins, refined, seconds in zip(
+        *curve_record(config, risks).values(), strict=True
+    ):
+        lines.append(
+            f"| {num_samples:g} | {noise:g} | {erm:.3e} | {descent:.3e} | "
+            f"{robust:.3e} | {wins:.4f} | {refined:.4f} | {seconds:.1f} |"
+        )
     return "\n".join(lines)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Parse the command line, run, and write the records and the table.
+    """Parse the command line, run, and write the records, curves and table.
 
     Args:
         argv: Command-line arguments without the program name.
@@ -252,6 +301,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         summary + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(config, risks), args.output_dir)
     for claim, claim_value in zip(CLAIMS, values, strict=True):
         result = make_result(PAPER_ID, claim, config.seeds, claim_value, config.device)
         path = write_result(result, args.output_dir)

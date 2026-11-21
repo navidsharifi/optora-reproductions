@@ -29,8 +29,8 @@ Repository = "https://github.com/navidsharifi/optora-reproductions"
 Optora = "https://github.com/navidsharifi/optora"
 Documentation = "https://navidsharifi.github.io/optora/"
 
-# Domain extras (vision, text, reference solvers, plotting) are added with
-# the first paper that needs them, never ahead of time.
+# Domain extras (vision, text, reference solvers) are added with the first
+# paper that needs them, never ahead of time.
 [project.optional-dependencies]
 # Independent solvers that check reproductions (workflow step 6), on small
 # instances or as the reference values of a claim. Never a source of a
@@ -46,6 +46,11 @@ vision = [
   "torchvision>=0.17",
   "pyarrow>=15",
   "pillow>=10"
+]
+# Report figures, drawn by tools/figures.py from the recorded results and
+# rendered again by every paper's smoke test.
+plot = [
+  "matplotlib>=3.8"
 ]
 dev = [
   "pytest>=8",

@@ -9,7 +9,7 @@ import pytest
 from optora_reproductions.config import load_config
 
 from ..config import Config
-from ..run import Measurement, claim_values, table
+from ..run import Measurement, claim_values, curve_record, table
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
 
@@ -71,3 +71,21 @@ def test_table_lists_every_size() -> None:
 def test_config_rejects_invalid_settings(changes: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         dataclasses.replace(smoke(), **changes)  # type: ignore[arg-type]
+
+
+def test_curve_record_takes_the_worst_error_and_the_mean_time_over_seeds() -> None:
+    config = dataclasses.replace(smoke(), seeds=(0, 1), state_counts=(10, 20))
+    measurements = {
+        (0, 20): Measurement(2e-16, 1e-16, 2e-3, 2e-6),
+        (0, 10): Measurement(1e-16, 3e-16, 1e-3, 1e-5),
+        (1, 10): Measurement(5e-16, 0.0, 1e-3, 1e-5),
+        (1, 20): Measurement(1e-16, 1e-16, 1e-3, 1e-4),
+    }
+
+    record = curve_record(config, measurements)
+
+    assert record["num_states"] == [10.0, 20.0]
+    assert record["random_error"] == [5e-16, 2e-16]
+    assert record["inventory_error"] == [3e-16, 1e-16]
+    assert record["lp_seconds"] == pytest.approx([1e-3, 1.5e-3])
+    assert record["optora_seconds"] == pytest.approx([1e-5, 5.1e-5])

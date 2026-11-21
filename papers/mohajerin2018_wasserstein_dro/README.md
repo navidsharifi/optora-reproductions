@@ -80,6 +80,10 @@ python -m papers.mohajerin2018_wasserstein_dro.run --config papers/mohajerin2018
 See the results table in the root `README.md`, generated from
 `results/mohajerin2018_wasserstein_dro.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/mohajerin2018_wasserstein_dro.json`.
+
 ## Findings
 
 Full run on 2026-11-15 with Optora 0.3.0, float64, on the RTX 3050. It took
@@ -114,6 +118,15 @@ The sweep at $N = 30$ shows the shape of Figure 5(a).
 | 0.1 | -1.214 | -1.268 | -1.167 | 1.000 |
 | 0.3 | -1.073 | -1.074 | -1.074 | 1.000 |
 | 1 | -1.074 | -1.074 | -1.074 | 1.000 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/radius_sweep-dark.svg">
+  <img alt="Top, the mean out-of-sample performance over the 200 simulations against the Wasserstein radius, with the band between the 20% and 80% quantiles and the radius of lowest mean marked. Bottom, the reliability of the certificate against the radius." src="figures/radius_sweep-light.svg">
+</picture>
+
+Figure 5(a) of the paper draws both curves on one plot with two
+vertical axes. The figure above gives each its own panel over the
+same radii.
 
 The mean $J$ falls until $\varepsilon = 0.05$ and rises after it. From
 $\varepsilon = 0.3$ on, every simulation returns the equally weighted
