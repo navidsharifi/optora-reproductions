@@ -1,6 +1,6 @@
 # Certifying some distributional robustness with principled adversarial training
 
-> Status. `in progress`
+> Status. `reproduced`
 
 ## Reference
 
@@ -134,4 +134,89 @@ See the results table in the root `README.md`, generated from
 
 ## Findings
 
-Not run yet.
+Full run on 2026-11-20 and 2026-11-21 on the RTX 3050, with the settings
+above and Optora 0.4.0 installed. The five seeds took 5.5 hours. The
+per-seed table is in `runs/sinha2018_certifiable_robustness/full_table.md`
+and the complete curves of every seed are in `full/seed_<s>.json` next to
+it.
+
+| Claim | Paper | This run, mean over 5 seeds (sample std) | Within tolerance |
+| --- | --- | --- | --- |
+| c1 | 0.0056 | -0.0009 (0.0030) | yes |
+| c2 | 0.990 | 0.9895 (0.0009) | yes |
+| c3 | 0.378 | 0.374 (0.004) | yes |
+| c4 | 0.085 | 0.092 (0.014) | yes |
+| c5 | 0.105 | 0.094 (0.014) | yes |
+| c6 | 2.44 | 2.63 (0.07) | yes |
+
+All six claims reproduce. The table below gives the quantities behind
+them as paper / ours, with our means over the five seeds and the range in
+brackets. Errors are in percent.
+
+| Model | Clean error | $\ell_2$ PGM error at $\sqrt{\hat\rho_n}$ | $\ell_\infty$ PGM error at 0.1 | $\hat\rho_{\mathrm{test}}$ at $\gamma$ |
+| --- | --- | --- | --- | --- |
+| ERM | 0.98 / 1.00 [0.88, 1.10] | 10.8 / 11.3 [9.3, 12.8] | 92.2 / 98.0 [97.4, 98.5] | 161 / 241 [190, 273] |
+| FGM | 0.84 / 0.87 [0.82, 0.94] | 2.96 / 2.55 [2.23, 2.67] | 26.9 / 30.1 [27.9, 32.7] | 2.26 / 1.38 [1.31, 1.52] |
+| IFGM | 0.77 / 0.87 [0.80, 0.96] | 3.75 / 2.46 [2.32, 2.62] | 63.2 / 28.1 [26.3, 29.7] | 23.4 / 1.24 [1.16, 1.32] |
+| PGM | 0.84 / 0.86 [0.77, 0.96] | 2.71 / 2.41 [2.25, 2.54] | 25.2 / 26.6 [25.0, 28.7] | 1.58 / 1.17 [1.06, 1.27] |
+| WRM | 0.87 / 0.95 [0.85, 1.16] | 2.31 / 2.19 [1.89, 2.39] | 14.7 / 17.2 [16.7, 18.0] | 0.582 / 0.564 [0.518, 0.593] |
+
+The certificate behaves as in Figure 2. On the synthetic data WRM reaches
+$\hat\rho_n = 0.068$ (0.062 in the paper), where the certificate is 0.250
+and the test worst-case loss 0.250 (0.240 and 0.234). The gap is negative
+in three seeds, by at most 0.004. Theorem 3 bounds the population worst
+case by the certificate only up to the statistical term
+$\epsilon_n(t)$, so on 10,000 test points a gap of this size agrees with
+a bound that is tight at $\hat\rho_n$. On MNIST $\hat\rho_n$ is 0.192,
+between 0.166 and 0.203 over the seeds (0.209 in the paper), the
+certificate 0.695 and the test worst case 0.321 (0.707 and 0.329). Part
+of this gap of 0.37 comes from the labels. The certificate uses the
+smoothed training labels, and the cross-entropy against them is never
+below their entropy of 0.545, while the test loss uses one-hot labels.
+
+WRM has the lowest $\ell_2$ error at the training radius in every seed,
+and the lowest $\ell_\infty$ error by 7.5 to 10.8 points over the best
+other model, which is PGM in every seed as in Figure 3(b). Against
+$\ell_\infty$ attacks our models are a little weaker than in the paper,
+17.2% against 14.7% for WRM and 98.0% against 92.2% for ERM, and the
+differences between models are what c5 measures.
+
+IFGM is the one model that departs from the paper. In Figures 3 and 4 it
+is the weakest of the adversarially trained models, with an $\ell_\infty$
+error of 63.2% and $\hat\rho_{\mathrm{test}} = 23.4$, while ours lies
+between FGM and PGM on every measure. The paper does not give the IFGM
+step size, and ours, $\epsilon/15$ for 15 steps, never leaves the ball,
+so it trains much like PGM with a shorter step. We cannot tell which step
+the authors used. No claim depends on IFGM alone, since c5 takes the
+minimum over FGM, IFGM and PGM.
+
+c6 comes out 0.19 above the paper because our ERM models move further
+under the test adversary, $\hat\rho_{\mathrm{test}}$ between 190 and 273
+against 161, while WRM matches at 0.564 against 0.582. The ratio is above
+two orders of magnitude in every seed, from $10^{2.50}$ to $10^{2.68}$.
+
+c2 holds on average but not in every seed. In seeds 3 and 4 all five
+models reach 99%. In seeds 0 and 2 ERM stops at 98.90%, and in seed 1 WRM
+stops at 98.84%. The paper reports one run, with clean errors between
+0.77% and 0.98%, and ours lie between 0.77% and 1.16%.
+
+A seed took between 61 and 72 minutes, longer than the 47 minutes
+estimated from the pilot. Training took 31 to 42 minutes of each seed and
+the rest is the attack and penalty sweeps over the test set, whose cost
+the pilot did not time separately. Epoch times of the same model varied
+between seeds by up to 65%, 24.0 s to 39.6 s for WRM, although every seed
+does the same work. The GPU stayed near its power limit of 45 W at about
+70 degrees Celsius.
+
+Optora. The experiment uses no Optora component, because Optora 0.4.0 has
+no continuous Wasserstein adversary. The prototype
+`prototypes.continuous_wasserstein.transport_map` worked unchanged in
+every run. What the paper needed from it is a batched inner ascent on
+$\ell(\theta; x) - \gamma \lVert x - x_0 \rVert_2^2$ for any
+differentiable loss on a batch of inputs, with the step schedule
+$1/\sqrt t$, a penalty that can differ per example, detached outputs and
+no gradient left on the model, together with the transport cost that
+gives $\hat\rho_n$ and the certificate of Eq. (14). Optora's
+`GradientDescent` takes a fixed step and solves one problem at a time, so
+the prototype uses it only as an oracle in its tests. This is the input
+to the Optora issue of plan step 3e and to P13 in step 3g.

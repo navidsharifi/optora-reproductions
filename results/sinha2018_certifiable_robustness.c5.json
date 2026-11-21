@@ -1,0 +1,32 @@
+{
+  "paper_id": "sinha2018_certifiable_robustness",
+  "claim": {
+    "claim_id": "c5",
+    "location": "Figure 3(b), linf PGM attack at eps_adv = 0.1 C_inf (25.2% vs 14.7%)",
+    "metric": "min over FGM, IFGM and PGM minus WRM test error, linf PGM attack",
+    "paper_value": 0.105,
+    "tolerance": 0.07
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    0.10719999999999999,
+    0.089,
+    0.09129999999999999,
+    0.10819999999999999,
+    0.0746
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-21"
+}
