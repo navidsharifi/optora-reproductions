@@ -19,6 +19,7 @@ from ..run import (
     SeedResult,
     SyntheticResult,
     claim_values,
+    curve_record,
     default_precision,
     measure,
     per_claim,
@@ -207,3 +208,37 @@ def test_run_builds_one_record_per_claim_over_the_seeds(
     assert [record.claim for record in records] == list(CLAIMS)
     assert all(record.seeds == (0, 1) for record in records)
     assert records[5].mean == pytest.approx(math.log10(320.0))
+
+
+def test_curve_record_averages_the_attacks_and_keeps_every_certificate() -> None:
+    second = _result(1)
+    stronger = dataclasses.replace(
+        second.methods[WRM], l2_errors=[(0.0, 0.03), (2.4, 0.7)]
+    )
+    second = dataclasses.replace(second, methods={**second.methods, WRM: stronger})
+
+    record = curve_record({1: second, 0: _result(0)})
+
+    assert record["l2"]["radius"] == pytest.approx([0.0, 2.4 / 9.21])
+    assert record["l2"]["claim_radius"] == pytest.approx(math.sqrt(0.2) / 9.21)
+    assert set(record["l2"]["error"]) == set(METHODS)
+    assert record["l2"]["error"][ERM] == pytest.approx([0.01, 0.5])
+    assert record["l2"]["error"][WRM] == pytest.approx([0.02, 0.6])
+    assert record["linf"]["radius"] == pytest.approx([0.0, 0.2])
+    assert record["linf"]["claim_radius"] == run_module.LINF_CLAIM
+    assert record["linf"]["error"][PGM] == pytest.approx([0.01, 0.9])
+    assert (
+        record["mnist"]
+        == [
+            {
+                "penalty": 1 / 2.6,
+                "distance": 0.2,
+                "loss": 0.8,
+                "test_distance": [0.1, 0.3, 0.9],
+                "test_loss": [0.2, 0.6, 1.4],
+            }
+        ]
+        * 2
+    )
+    assert [seed["loss"] for seed in record["synthetic"]] == [0.43, 0.43]
+    assert [seed["penalty"] for seed in record["synthetic"]] == [2.0, 2.0]

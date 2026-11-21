@@ -132,6 +132,10 @@ command with `--resume` continues at the first missing seed.
 See the results table in the root `README.md`, generated from
 `results/sinha2018_certifiable_robustness.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/sinha2018_certifiable_robustness.json`.
+
 ## Findings
 
 Full run on 2026-11-20 and 2026-11-21 on the RTX 3050, with the settings
@@ -174,12 +178,29 @@ of this gap of 0.37 comes from the labels. The certificate uses the
 smoothed training labels, and the cross-entropy against them is never
 below their entropy of 0.545, while the test loss uses one-hot labels.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/certificate-dark.svg">
+  <img alt="Certificate of the WRM model and its test worst-case loss against the robustness level, on the synthetic data and on MNIST, one pair of lines per seed. The two meet at the level reached in training on the synthetic data and stay 0.37 apart on MNIST." src="figures/certificate-light.svg">
+</picture>
+
+The figure follows Figure 2 of the paper. Each certificate is a line of
+slope $\gamma$ through the point its training run reaches, shown by the
+marker, and the vertical line is the mean $\hat\rho_n$ over the seeds.
+
 WRM has the lowest $\ell_2$ error at the training radius in every seed,
 and the lowest $\ell_\infty$ error by 7.5 to 10.8 points over the best
 other model, which is PGM in every seed as in Figure 3(b). Against
 $\ell_\infty$ attacks our models are a little weaker than in the paper,
 17.2% against 14.7% for WRM and 98.0% against 92.2% for ERM, and the
 differences between models are what c5 measures.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/attack_error-dark.svg">
+  <img alt="Test error of the five models under PGM attacks of growing radius in the Euclidean and the supremum norm, mean over the five seeds. ERM rises fastest and WRM stays lowest over most of both ranges." src="figures/attack_error-light.svg">
+</picture>
+
+The figure follows Figure 3 of the paper, with a vertical line at the
+radius where c4 and c5 read the error.
 
 IFGM is the one model that departs from the paper. In Figures 3 and 4 it
 is the weakest of the adversarially trained models, with an $\ell_\infty$

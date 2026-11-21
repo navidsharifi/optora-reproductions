@@ -10,7 +10,14 @@ from optora_reproductions.config import load_config
 
 from ..config import Config
 from ..data import NUM_ASSETS
-from ..run import Measurements, best_radius, claim_values, table
+from ..run import (
+    CURVE_COLUMNS,
+    Measurements,
+    best_radius,
+    claim_values,
+    curve_record,
+    table,
+)
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
 F64 = torch.float64
@@ -93,3 +100,26 @@ def test_table_has_one_row_per_radius_and_one_for_the_certificate() -> None:
 def test_config_rejects_invalid_settings(changes: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         dataclasses.replace(smoke(), **changes)  # type: ignore[arg-type]
+
+
+def test_curve_record_lists_the_sweep_and_then_the_certificate_setting() -> None:
+    config = dataclasses.replace(smoke(), seeds=(0, 1))
+
+    record = curve_record(config, measurements())
+
+    assert tuple(record) == CURVE_COLUMNS
+    assert record["num_samples"] == [
+        *[float(config.sweep_samples)] * len(config.radii),
+        float(config.certificate_samples),
+    ]
+    assert record["radius"] == [*config.radii, config.certificate_radius]
+    assert record["performance_mean"] == pytest.approx([-1.0, -1.1, -1.075, -0.9])
+    assert record["reliability"] == [0.0, 0.0, 1.0, 0.5]
+    assert record["certificate_gap"] == [0.0, 0.0, 0.0, 0.0]
+    for low, mean, high in zip(
+        record["performance_low"],
+        record["performance_mean"],
+        record["performance_high"],
+        strict=True,
+    ):
+        assert low <= mean <= high

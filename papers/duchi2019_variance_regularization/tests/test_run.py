@@ -9,7 +9,15 @@ import torch
 from optora_reproductions.config import load_config
 
 from ..config import Config
-from ..run import CellRisks, _chunk_size, claim_values, main, table
+from ..run import (
+    CURVE_COLUMNS,
+    CellRisks,
+    _chunk_size,
+    claim_values,
+    curve_record,
+    main,
+    table,
+)
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
 
@@ -108,3 +116,23 @@ def test_main_writes_the_table(tmp_path: Path) -> None:
 def test_config_rejects_invalid_settings(changes: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         dataclasses.replace(smoke(), **changes)  # type: ignore[arg-type]
+
+
+def test_curve_record_has_one_entry_per_cell_in_grid_order() -> None:
+    config = dataclasses.replace(smoke(), noise_levels=(0.1, 1.0), sample_sizes=(100,))
+    risks = {
+        (0, 100, 1.0): cell([0.04, 0.02], [0.0, 0.0]),
+        (0, 100, 0.1): cell([0.4, 0.2], [0.1, 0.3]),
+    }
+
+    record = curve_record(config, risks)
+
+    assert tuple(record) == CURVE_COLUMNS
+    assert record["num_samples"] == [100.0, 100.0]
+    assert record["noise"] == [0.1, 1.0]
+    assert record["erm"] == pytest.approx([0.3, 0.03])
+    assert record["descent"] == pytest.approx([0.2, 0.0])
+    assert record["robust"] == pytest.approx([0.2, 0.0])
+    assert record["wins"] == [0.5, 1.0]
+    assert record["refined"] == [0.5, 0.5]
+    assert record["seconds"] == [1.0, 1.0]

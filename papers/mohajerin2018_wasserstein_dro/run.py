@@ -16,7 +16,12 @@ from pathlib import Path
 import torch
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -152,7 +157,18 @@ def claim_values(config: Config, measurements: Measurements) -> list[torch.Tenso
     return [deviation, reliable, sweep[:, small] - sweep[:, best_radius(measurements)]]
 
 
-def table(config: Config, measurements: Measurements) -> str:
+CURVE_COLUMNS = (
+    "num_samples",
+    "radius",
+    "performance_mean",
+    "performance_low",
+    "performance_high",
+    "reliability",
+    "certificate_gap",
+)
+
+
+def curve_record(config: Config, measurements: Measurements) -> dict[str, list[float]]:
     """Summarize the sweep like Figure 5(a) and the certificate setting.
 
     Args:
@@ -160,14 +176,12 @@ def table(config: Config, measurements: Measurements) -> str:
         measurements: Output of `measure`.
 
     Returns:
-        Markdown with one row per sweep radius and one for the certificate
-        setting, holding the mean, 20% and 80% quantiles of $J$, the
-        reliability and the largest gap to the HiGHS optimal value.
+        One entry per sweep radius, followed by one for the certificate
+        setting, under each name of `CURVE_COLUMNS`. The number of samples
+        and the radius, the mean, 20% and 80% quantiles of $J$ over the
+        simulations, the reliability, and the largest gap between the
+        certificate and the HiGHS optimal value.
     """
-    lines = [
-        "| N | radius | mean J | J 20% | J 80% | reliability | max certificate - LP |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
-    ]
 
     def row(
         num_samples: int,
@@ -175,27 +189,29 @@ def table(config: Config, measurements: Measurements) -> str:
         performance: torch.Tensor,
         certificate: torch.Tensor,
         lp_values: torch.Tensor,
-    ) -> str:
+    ) -> tuple[float, ...]:
         low, high = torch.quantile(performance, torch.tensor([0.2, 0.8]).double())
-        reliability = (performance <= certificate).double().mean()
-        gap = (certificate - lp_values).abs().max()
         return (
-            f"| {num_samples} | {radius:g} | {float(performance.mean()):.4f} | "
-            f"{float(low):.4f} | {float(high):.4f} | {float(reliability):.3f} | "
-            f"{float(gap):.1e} |"
+            float(num_samples),
+            radius,
+            float(performance.mean()),
+            float(low),
+            float(high),
+            float((performance <= certificate).double().mean()),
+            float((certificate - lp_values).abs().max()),
         )
 
-    for column, radius in enumerate(config.radii):
-        lines.append(
-            row(
-                config.sweep_samples,
-                radius,
-                measurements.sweep_performance[:, column],
-                measurements.sweep_certificate[:, column],
-                measurements.sweep_lp_values[:, column],
-            )
+    rows = [
+        row(
+            config.sweep_samples,
+            radius,
+            measurements.sweep_performance[:, column],
+            measurements.sweep_certificate[:, column],
+            measurements.sweep_lp_values[:, column],
         )
-    lines.append(
+        for column, radius in enumerate(config.radii)
+    ]
+    rows.append(
         row(
             config.certificate_samples,
             config.certificate_radius,
@@ -204,6 +220,34 @@ def table(config: Config, measurements: Measurements) -> str:
             measurements.lp_values,
         )
     )
+    return {
+        name: list(column)
+        for name, column in zip(CURVE_COLUMNS, zip(*rows, strict=True), strict=True)
+    }
+
+
+def table(config: Config, measurements: Measurements) -> str:
+    """Format `curve_record` as Markdown, with the portfolio gaps below it.
+
+    Args:
+        config: Settings of the run.
+        measurements: Output of `measure`.
+
+    Returns:
+        Markdown with one row per sweep radius and one for the certificate
+        setting, and a line with the largest portfolio gaps.
+    """
+    lines = [
+        "| N | radius | mean J | J 20% | J 80% | reliability | max certificate - LP |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for num_samples, radius, mean, low, high, reliability, gap in zip(
+        *curve_record(config, measurements).values(), strict=True
+    ):
+        lines.append(
+            f"| {num_samples:g} | {radius:g} | {mean:.4f} | {low:.4f} | "
+            f"{high:.4f} | {reliability:.3f} | {gap:.1e} |"
+        )
     portfolio_gap = (measurements.portfolios - measurements.lp_portfolios).abs().max()
     lp_deviation = (measurements.lp_portfolios - 1.0 / NUM_ASSETS).abs().max()
     lines += [
@@ -233,7 +277,7 @@ def run(config: Config) -> list[ClaimResult]:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Parse the command line, run, and write the records and the table.
+    """Parse the command line, run, and write the records, curves and table.
 
     Args:
         argv: Command-line arguments without the program name.
@@ -252,6 +296,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         summary + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(config, measurements), args.output_dir)
     for claim, claim_value in zip(
         CLAIMS, claim_values(config, measurements), strict=True
     ):

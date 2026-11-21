@@ -84,6 +84,10 @@ python -m papers.levy2020_large_scale_dro.run --config papers/levy2020_large_sca
 See the results table in the root `README.md`, generated from
 `results/levy2020_large_scale_dro.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/levy2020_large_scale_dro.json`.
+
 ## Findings
 
 Full run on 2026-11-18 with Optora 0.4.0, float32, on the RTX 3050. The
@@ -111,6 +115,14 @@ epochs to 2% of these values follow Table 5 closely.
 | $\chi^2$ ball | ours | not reached | 74.4 ± 0.9 | 60.2 ± 1.8 | 570 | 9.5 |
 | Penalized $\chi^2$ | Table 5 | 107 ± 1 | 104 ± 1 | 131 ± 5 | 1680 | 16.2 |
 | Penalized $\chi^2$ | ours | 107.6 ± 1.1 | 104.6 ± 1.1 | 134.8 ± 5.8 | 1215 | 11.6 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/epochs_to_optimum-dark.svg">
+  <img alt="Epochs each batch size needs to reach within 2% of the optimal training objective, for the three objectives, with the speed-up of the best minibatch size over the full batch next to the value of the paper." src="figures/epochs_to_optimum-light.svg">
+</picture>
+
+The figure shows our rows of the table. The speed-up above each
+group is the value of claims c1 to c3.
 
 Every minibatch count is within about one standard deviation of the
 paper. With $n = 50$ the $\chi^2$ ball ends at 0.2060 in every seed,
@@ -169,6 +181,14 @@ deviation.
 | 50 | 0.344 | 0.343 | 0.343 | 0.446 | 0.415 | 0.172 (0.004) |
 | 100 | 0.347 | 0.340 | 0.342 | 0.446 | 0.405 | 0.153 (0.004) |
 | 300 | 0.349 | 0.338 | 0.339 | 0.454 | 0.402 | 0.149 (0.001) |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/group_loss_reduction-dark.svg">
+  <img alt="Claim c4 read at every epoch, mean over the five seeds with one sample standard deviation, against the range of the paper. The curve peaks near 0.39 in the first epochs, crosses the range between epochs 17 and 47, and ends at 0.149." src="figures/group_loss_reduction-light.svg">
+</picture>
+
+The figure shows c4 at all 300 epochs. The shaded band is the range of
+the paper, which is also the tolerance interval of the claim.
 
 The mean c4 lies inside the stated range of 17.5% to 27% from epoch 17 to
 epoch 47, and it peaks at 0.394 at epoch 4. The ERM run with

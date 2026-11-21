@@ -14,11 +14,17 @@ import statistics
 import time
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import torch
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -332,6 +338,29 @@ def table(config: Config, runs: dict[Key, Run]) -> str:
     return "\n".join(lines)
 
 
+def worst_group_means(config: Config, runs: dict[Key, Run]) -> dict[str, torch.Tensor]:
+    """Return the mean worst-group test loss of every compared run by epoch.
+
+    Args:
+        config: Settings of the experiment.
+        runs: Every run of the experiment.
+
+    Returns:
+        The mean over seeds at every epoch, shape `(config.epochs,)`, for
+        each objective at `config.comparison_batch_size` and for each ERM
+        run, named `erm mu=<weight decay>`.
+    """
+    columns = {
+        objective: worst_group_curves(config, runs, objective, WEIGHT_DECAY)
+        for objective in OBJECTIVES
+    }
+    for weight_decay in ERM_STEP_SIZES:
+        columns[f"erm mu={weight_decay:g}"] = worst_group_curves(
+            config, runs, ERM, weight_decay
+        )
+    return {name: values.mean(dim=0) for name, values in columns.items()}
+
+
 def epoch_table(config: Config, runs: dict[Key, Run]) -> str:
     """Summarize claim c4 and the worst-group test loss by epoch.
 
@@ -346,15 +375,7 @@ def epoch_table(config: Config, runs: dict[Key, Run]) -> str:
         each ERM run, means over seeds, and claim c4 at that epoch. Two
         lines below it give the epoch at which each mean is best.
     """
-    columns = {
-        objective: worst_group_curves(config, runs, objective, WEIGHT_DECAY)
-        for objective in OBJECTIVES
-    }
-    for weight_decay in ERM_STEP_SIZES:
-        columns[f"erm mu={weight_decay:g}"] = worst_group_curves(
-            config, runs, ERM, weight_decay
-        )
-    means = {name: values.mean(dim=0) for name, values in columns.items()}
+    means = worst_group_means(config, runs)
     reductions = group_loss_reduction_curves(config, runs)
     reduction = reductions.mean(dim=0)
     epochs = sorted(
@@ -409,6 +430,57 @@ def curves(runs: dict[Key, Run]) -> list[dict[str, object]]:
     ]
 
 
+def curve_record(config: Config, runs: dict[Key, Run]) -> dict[str, Any]:
+    """Return the series behind the figures of the report.
+
+    Args:
+        config: Settings of the experiment.
+        runs: Every run of the experiment.
+
+    Returns:
+        `epochs_to_optimum` maps each objective to its batch sizes, with 0
+        for the full batch, and the epochs every seed needs to get within
+        2% of the optimal training objective, one list per batch size.
+        `epochs` lists the epochs of the comparison runs,
+        `worst_group_loss` the mean worst-group test loss of each of them
+        at those epochs, and `reduction_mean` and `reduction_std` the mean
+        and sample standard deviation over seeds of claim c4 read at each
+        epoch.
+    """
+    reached: dict[str, dict[str, list[Any]]] = {}
+    for objective in OBJECTIVES:
+        target = (1.0 + TOLERANCE) * optimum(runs, objective)
+        sizes = [*config.batch_sizes, FULL_BATCH]
+        reached[objective] = {
+            "batch_size": sizes,
+            "epochs": [
+                [
+                    epochs_to_reach(run, target)
+                    for run in runs.values()
+                    if (run.setting.objective, run.setting.batch_size)
+                    == (objective, size)
+                ]
+                for size in sizes
+            ],
+        }
+    reductions = group_loss_reduction_curves(config, runs)
+    spread = (
+        reductions.std(dim=0)
+        if len(config.seeds) > 1
+        else torch.zeros_like(reductions[0])
+    )
+    return {
+        "epochs_to_optimum": reached,
+        "epochs": list(range(1, config.epochs + 1)),
+        "worst_group_loss": {
+            name: mean.tolist()
+            for name, mean in worst_group_means(config, runs).items()
+        },
+        "reduction_mean": reductions.mean(dim=0).tolist(),
+        "reduction_std": spread.tolist(),
+    }
+
+
 def run(config: Config) -> list[ClaimResult]:
     """Measure and build one record per claim.
 
@@ -448,6 +520,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         json.dumps(curves(runs)) + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(config, runs), args.output_dir)
     for claim, claim_value in zip(CLAIMS, claim_values(config, runs), strict=True):
         result = make_result(PAPER_ID, claim, config.seeds, claim_value, config.device)
         path = write_result(result, args.output_dir)

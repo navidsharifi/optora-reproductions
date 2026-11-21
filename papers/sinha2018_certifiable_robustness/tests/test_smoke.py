@@ -4,14 +4,36 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from optora_reproductions.config import load_config
-from optora_reproductions.results import read_results
+import pytest
 
+from optora_reproductions.config import load_config
+from optora_reproductions.figures import THEMES, render, stored_digest
+from optora_reproductions.results import read_curves, read_results
+
+from .. import PAPER_ID
 from ..claims import CLAIMS
 from ..config import Config
+from ..figures import FIGURES
 from ..run import main
 
 CONFIGS = Path(__file__).resolve().parents[1] / "configs"
+
+
+@pytest.fixture(scope="module")
+def outputs(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Folder holding the `results` and `runs` of one smoke run of `main`."""
+    directory = tmp_path_factory.mktemp("smoke")
+    main(
+        [
+            "--config",
+            str(CONFIGS / "smoke.toml"),
+            "--output-dir",
+            str(directory / "results"),
+            "--table-dir",
+            str(directory / "runs"),
+        ]
+    )
+    return directory
 
 
 def test_every_config_loads() -> None:
@@ -19,23 +41,24 @@ def test_every_config_loads() -> None:
         load_config(path, Config)
 
 
-def test_main_writes_one_record_per_claim(tmp_path: Path) -> None:
+def test_main_writes_one_record_per_claim(outputs: Path) -> None:
     config = load_config(CONFIGS / "smoke.toml", Config)
 
-    main(
-        [
-            "--config",
-            str(CONFIGS / "smoke.toml"),
-            "--output-dir",
-            str(tmp_path / "results"),
-            "--table-dir",
-            str(tmp_path / "runs"),
-        ]
-    )
-
-    records = read_results(tmp_path / "results")
+    records = read_results(outputs / "results")
     assert [record.claim for record in records] == list(CLAIMS)
     assert all(record.seeds == config.seeds for record in records)
-    assert (tmp_path / "runs" / "smoke_table.md").exists()
-    saved = sorted(path.name for path in (tmp_path / "runs" / "smoke").glob("*.json"))
+    assert (outputs / "runs" / "smoke_table.md").exists()
+    saved = sorted(path.name for path in (outputs / "runs" / "smoke").glob("*.json"))
     assert saved == [f"seed_{seed}.json" for seed in config.seeds]
+
+
+def test_every_figure_draws_from_the_smoke_run(outputs: Path) -> None:
+    curves = read_curves(PAPER_ID, outputs / "results")
+    assert curves is not None
+    results = read_results(outputs / "results")
+
+    names = [spec.name for spec in FIGURES]
+    assert len(set(names)) == len(names)
+    for spec in FIGURES:
+        for theme in THEMES:
+            assert stored_digest(render(spec, theme, curves, results)) is not None

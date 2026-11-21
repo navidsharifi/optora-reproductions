@@ -4,6 +4,10 @@ A record holds one claim of one paper, the values measured for it over
 several seeds, and the software and hardware they were measured on. Records
 are stored as JSON files in `results/` and are the only source of the
 numbers shown in the repository README.
+
+A paper also keeps one curve record in `results/curves/`. It holds the
+series behind the figures of its report, such as a metric at every epoch,
+which a claim record has no place for.
 """
 
 from __future__ import annotations
@@ -16,12 +20,15 @@ import math
 import platform
 import re
 import statistics
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import torch
+
+CURVES_FOLDER = "curves"
+"""Subfolder of a results folder that holds the curve records."""
 
 _IDENTIFIER = re.compile(r"[a-z0-9_]+")
 
@@ -249,3 +256,43 @@ def read_results(directory: str | Path) -> list[ClaimResult]:
             raise ValueError(f"{path} holds the record {result.filename}")
         results.append(result)
     return sorted(results, key=lambda result: (result.paper_id, result.claim.claim_id))
+
+
+def write_curves(
+    paper_id: str, curves: Mapping[str, Any], directory: str | Path
+) -> Path:
+    """Write the curve record of a paper, replacing an earlier one.
+
+    Args:
+        paper_id: Folder name of the paper under `papers/`.
+        curves: Series of the paper's figures as plain JSON types. Every
+            number must be finite.
+        directory: Results folder. The record goes to its `curves`
+            subfolder, which is created if missing.
+
+    Returns:
+        Path of the written file.
+    """
+    _check_identifier("paper_id", paper_id)
+    folder = Path(directory) / CURVES_FOLDER
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{paper_id}.json"
+    path.write_text(json.dumps(curves, allow_nan=False) + "\n", encoding="utf-8")
+    return path
+
+
+def read_curves(paper_id: str, directory: str | Path) -> dict[str, Any] | None:
+    """Read the curve record of a paper.
+
+    Args:
+        paper_id: Folder name of the paper under `papers/`.
+        directory: Results folder.
+
+    Returns:
+        The record, or `None` if the paper has none yet.
+    """
+    path = Path(directory) / CURVES_FOLDER / f"{paper_id}.json"
+    if not path.exists():
+        return None
+    curves: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return curves

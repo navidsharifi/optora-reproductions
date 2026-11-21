@@ -18,11 +18,17 @@ import json
 import statistics
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import torch
 
 from optora_reproductions.config import load_config
-from optora_reproductions.results import ClaimResult, make_result, write_result
+from optora_reproductions.results import (
+    ClaimResult,
+    make_result,
+    write_curves,
+    write_result,
+)
 from optora_reproductions.seeding import seed_everything
 
 from . import PAPER_ID
@@ -219,6 +225,37 @@ def table(config: Config, runs: dict[Key, Run]) -> str:
     return "\n".join(lines)
 
 
+def curve_record(config: Config, runs: dict[Key, Run]) -> dict[str, Any]:
+    """Return the test accuracies behind the figures of the report.
+
+    Args:
+        config: Settings of the run.
+        runs: Every run by its key.
+
+    Returns:
+        For each regime and method, the evaluated `epochs` and the
+        `average_test` and `worst_test` accuracies at those epochs, one
+        list per seed of the regime.
+    """
+    record: dict[str, dict[str, dict[str, Any]]] = {}
+    for setting in settings(config):
+        run_ = runs[key(setting)]
+        entry = record.setdefault(setting.regime, {}).setdefault(
+            setting.method,
+            {"epochs": list(run_.epochs), "average_test": [], "worst_test": []},
+        )
+        entry["average_test"].append(
+            [
+                average_accuracy(evaluation.test, run_.train_proportions)
+                for evaluation in run_.evaluations
+            ]
+        )
+        entry["worst_test"].append(
+            [worst_group_accuracy(evaluation.test) for evaluation in run_.evaluations]
+        )
+    return record
+
+
 def run(config: Config, cache_dir: Path | None = None) -> list[ClaimResult]:
     """Measure and build one record per claim.
 
@@ -265,6 +302,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         json.dumps(curves) + "\n", encoding="utf-8"
     )
     print(summary)
+    write_curves(PAPER_ID, curve_record(config, runs), args.output_dir)
     values = claim_values(config, runs)
     for claim, seeds, claim_value in zip(
         CLAIMS, claim_seeds(config), values, strict=True

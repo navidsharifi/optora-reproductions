@@ -4,7 +4,9 @@ The notebook is built from every paper's `README.md` and the records in
 `results/`, so it shows the recorded results without being run. It opens
 with the results table of all papers and one setup cell, followed by one
 section per paper with its report, its recorded results, and cells that
-rerun it on Colab. The notebook is a generated file, never edited by hand.
+rerun it on Colab. The figures of a report are loaded from the files that
+`tools.figures` wrote to the `main` branch. The notebook is a generated
+file, never edited by hand.
 
 Usage::
 
@@ -29,6 +31,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "navidsharifi/optora-reproductions"
 REPOSITORY_URL = f"https://github.com/{REPOSITORY}"
 BLOB_URL = f"{REPOSITORY_URL}/blob/main/"
+RAW_URL = f"https://raw.githubusercontent.com/{REPOSITORY}/main/"
 NOTEBOOK_NAME = "reproductions.ipynb"
 COLAB_URL = (
     f"https://colab.research.google.com/github/{REPOSITORY}/blob/main/"
@@ -38,6 +41,7 @@ CLONE_DIR = "/content/optora-reproductions"
 RERUN_DIR = "runs/colab"
 
 _HEADING = re.compile(r"#{1,5} ")
+_FIGURE = re.compile(r'(?<=["(])figures/(?=[\w-]+\.svg)')
 
 _SETUP = f"""\
 # Clone (or update) the repository and install it with its pinned optora
@@ -108,6 +112,24 @@ def demote_headings(text: str) -> str:
     return "".join(lines)
 
 
+def absolute_figures(text: str, paper_id: str) -> str:
+    """Point the figure links of a paper README at the repository.
+
+    A paper README embeds its figures by a path relative to its own folder,
+    which does not resolve inside the notebook. Each such path is replaced
+    by the address of the file on the `main` branch.
+
+    Args:
+        text: Markdown text of the README.
+        paper_id: Folder name of the paper under `papers/`.
+
+    Returns:
+        The text with every `figures/<name>.svg` that opens a Markdown link
+        target or a quoted HTML attribute made absolute.
+    """
+    return _FIGURE.sub(f"{RAW_URL}papers/{paper_id}/figures/", text)
+
+
 def paper_ids(papers_dir: str | Path) -> list[str]:
     """List the papers shown in the notebook, skipping `_template`.
 
@@ -135,7 +157,7 @@ def _paper_cells(paper_dir: Path, results: Sequence[ClaimResult]) -> list[Any]:
         f"--config papers/{paper_id}/configs"
     )
     return [
-        _markdown(demote_headings(readme) + "\n"),
+        _markdown(absolute_figures(demote_headings(readme), paper_id) + "\n"),
         _markdown(
             f"### Recorded results of `{paper_id}`\n\n"
             + render_table(recorded, link_base=BLOB_URL)

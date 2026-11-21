@@ -95,6 +95,10 @@ python -m papers.duchi2019_variance_regularization.run --config papers/duchi2019
 See the results table in the root `README.md`, generated from
 `results/duchi2019_variance_regularization.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record
+`results/curves/duchi2019_variance_regularization.json`.
+
 ## Findings
 
 Full run on 2026-11-15 with Optora 0.2.0, float64, on the RTX 3050. It took
@@ -125,6 +129,14 @@ is
 | 0.1 | 0.172-0.183 | 0.0048 | 0.519 |
 | 1 | 0.182 | 0.0055 | 0.522 |
 | 10 | 0.172-0.183 | 0.0053 | 0.544 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/risk_ratio-dark.svg">
+  <img alt="Ratio of the mean robust risk to the mean ERM risk at n = 100 for the four noise levels. The descent phase alone gives about 0.52, the full solver about 0.005, and the value of the paper with its tolerance lies between them." src="figures/risk_ratio-light.svg">
+</picture>
+
+The figure shows the same ratios on a logarithmic axis, with the band
+of values that count as reproduced around the 0.182 of the paper.
 
 The ratio barely moves over three orders of magnitude in $B$, in either
 solver column. The ERM scale gap below acts like a smaller $B$, so it is

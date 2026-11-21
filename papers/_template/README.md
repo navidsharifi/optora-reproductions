@@ -43,7 +43,20 @@ python -m papers.<id>.run --config papers/<id>/configs/full.toml
 See the results table in the root `README.md`, generated from
 `results/<id>.<claim_id>.json`.
 
+The figures under Findings are drawn by `python -m tools.figures` from
+those records and from the curve record `results/curves/<id>.json`.
+
 ## Findings
 
 What matched, what did not, and the most likely reason. Link every Optora
 issue this paper produced.
+
+Show each main result as a figure next to the text it supports. Declare
+the figure in `figures.py`, generate it, and embed both colour schemes.
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/<name>-dark.svg">
+  <img alt="What the figure shows" src="figures/<name>-light.svg">
+</picture>
+```

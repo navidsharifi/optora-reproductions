@@ -44,7 +44,8 @@ library are reported on the Optora issue tracker.
 <!-- results-table:end -->
 
 The table is generated from `results/` by `python -m tools.results_table`
-and checked in CI.
+and checked in CI. Each report shows its main results as figures, which
+`python -m tools.figures` draws from the same records.
 
 ## Running a reproduction
 
@@ -55,9 +56,10 @@ package itself.
 ```bash
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\Activate.ps1
-pip install -e ".[dev,vision]"
+pip install -e ".[dev,vision,plot]"
 python -m papers.<paper_id>.run --config papers/<paper_id>/configs/full.toml
 python -m tools.results_table
+python -m tools.figures
 ```
 
 Every paper also has a `smoke.toml` that runs in seconds on CPU. The test
@@ -71,13 +73,13 @@ pytest && ruff check . && ruff format --check . && mypy
 
 | Path | Content |
 | --- | --- |
-| `papers/<paper_id>/` | One reproduction, with its report in `README.md` |
+| `papers/<paper_id>/` | One reproduction, with its report in `README.md` and the figures of the report in `figures/` |
 | `papers/_template/` | Starting point, copied by `python -m tools.new_paper <paper_id>` |
-| `results/` | One JSON record per reproduced claim |
+| `results/` | One JSON record per reproduced claim, and one curve record per paper in `curves/` |
 | `notebooks/` | One generated Google Colab notebook with every paper's report and recorded results ([open in Colab](https://colab.research.google.com/github/navidsharifi/optora-reproductions/blob/main/notebooks/reproductions.ipynb)) |
-| `optora_reproductions/` | Shared helpers for settings, seeding and result records |
+| `optora_reproductions/` | Shared helpers for settings, seeding, result records and figures |
 | `prototypes/` | Components Optora does not ship yet, kept here until upstreamed |
-| `tools/` | Results table generator and paper scaffolder |
+| `tools/` | Generators of the results table, the report figures and the notebook, and the paper scaffolder |
 
 ## License
 
