@@ -11,12 +11,15 @@ from ..model import ERM, FULL_BATCH, NUM_GROUPS, OBJECTIVES, WEIGHT_DECAY, Run, 
 from ..run import (
     Key,
     claim_values,
+    epoch_table,
+    group_loss_reduction_curves,
     group_loss_reductions,
     key,
     optimum,
     settings,
     speed_ups,
     table,
+    worst_group_curve,
     worst_group_loss,
 )
 
@@ -30,9 +33,12 @@ CONFIG = Config(
 )
 
 
-def _run(setting: Setting, values: list[float], worst: float = 1.0) -> Run:
-    group_loss = torch.full((NUM_GROUPS,), 0.5)
-    group_loss[3] = worst
+def _run(
+    setting: Setting, values: list[float], worst: float | list[float] = 1.0
+) -> Run:
+    """Return a run whose subgroup 3 has the loss `worst` at every evaluation."""
+    group_loss = torch.full((len(values), NUM_GROUPS), 0.5)
+    group_loss[:, 3] = torch.tensor(worst)
     return Run(
         setting=setting,
         epochs=torch.arange(1, len(values) + 1) * setting.eval_interval,
@@ -59,7 +65,7 @@ def _runs() -> dict[Key, Run]:
     for setting in settings(CONFIG):
         if setting.objective == ERM:
             worst = 2.0 if setting.weight_decay == 1e-4 else 1.6
-            runs[key(setting)] = _run(setting, [1.0], worst)
+            runs[key(setting)] = _run(setting, [1.0] * 4, worst)
         elif setting.batch_size == FULL_BATCH:
             runs[key(setting)] = _run(setting, [5.0, 1.1, 1.0])
         else:
@@ -80,6 +86,8 @@ def test_settings_cover_every_run_once() -> None:
     full = [setting for setting in every if setting.batch_size == FULL_BATCH]
     assert [setting.objective for setting in full] == list(OBJECTIVES)
     assert all(setting.epochs == 30 and setting.eval_interval == 10 for setting in full)
+    others = [setting for setting in every if setting.batch_size != FULL_BATCH]
+    assert all(setting.epochs == 4 and setting.eval_interval == 1 for setting in others)
 
 
 def test_optimum_is_the_lowest_value_of_any_run_of_the_objective() -> None:
@@ -104,14 +112,49 @@ def test_a_seed_that_never_reaches_gets_a_lower_bound() -> None:
 
 def test_worst_group_loss_skips_empty_groups() -> None:
     run = _run(settings(CONFIG)[0], [1.0], worst=0.7)
-    run.group_loss[5] = float("nan")
+    run.group_loss[:, 5] = float("nan")
     assert worst_group_loss(run) == pytest.approx(0.7)
+
+
+def test_worst_group_curve_follows_every_evaluation() -> None:
+    run = _run(settings(CONFIG)[0], [1.0] * 4, worst=[0.4, 0.9, 0.7, 0.6])
+    run.group_loss[2, 3] = float("nan")
+
+    curve = worst_group_curve(run)
+
+    assert curve.dtype == torch.float64
+    assert curve.tolist() == pytest.approx([0.5, 0.9, 0.5, 0.6])
+    assert worst_group_loss(run) == pytest.approx(0.6)
 
 
 def test_group_loss_reduction_against_the_better_erm() -> None:
     # The better ERM worst group is 1.6, so the reductions are 0.25, 0.2 and
     # 0.15, whose mean is 0.2.
     assert group_loss_reductions(CONFIG, _runs()) == pytest.approx([0.2, 0.2])
+
+
+def test_group_loss_reduction_curves_compare_runs_at_the_same_epoch() -> None:
+    runs = _runs()
+    for seed in CONFIG.seeds:
+        erm = runs[(ERM, 500, 1e-4, seed)]
+        runs[(ERM, 500, 1e-4, seed)] = _run(
+            erm.setting, [1.0] * 4, worst=[1.5, 1.6, 2.0, 2.0]
+        )
+        cvar = runs[("cvar", 500, WEIGHT_DECAY, seed)]
+        runs[("cvar", 500, WEIGHT_DECAY, seed)] = _run(
+            cvar.setting, [1.0] * 4, worst=[1.5, 1.2, 1.2, 1.2]
+        )
+
+    curves = group_loss_reduction_curves(CONFIG, runs)
+
+    # At epoch 1 the better ERM is the run with mu = 1e-4 at 1.5, so CVaR
+    # gains nothing, chi-square 1 - 1.28 / 1.5 and penalty 1 - 1.36 / 1.5.
+    # From epoch 2 on the better ERM is 1.6 and the mean is 0.2.
+    first = (0.0 + (1 - 1.28 / 1.5) + (1 - 1.36 / 1.5)) / 3
+    assert curves.shape == (2, 4)
+    assert curves[:, 0].tolist() == pytest.approx([first, first])
+    assert curves[:, 1:].flatten().tolist() == pytest.approx([0.2] * 6)
+    assert group_loss_reductions(CONFIG, runs) == curves[:, -1].tolist()
 
 
 def test_claim_values_follow_the_order_of_the_claims() -> None:
@@ -128,6 +171,23 @@ def test_table_has_one_row_per_objective_and_batch_size() -> None:
     rows = [line for line in lines if line.startswith("| ") and "---" not in line]
     assert len(rows) == 1 + 3 * 2 + 3 + 2
     assert lines[-1].startswith("Optimal training objective")
+
+
+def test_epoch_table_lists_the_reported_and_the_last_epochs() -> None:
+    lines = epoch_table(CONFIG, _runs()).splitlines()
+
+    rows = [line for line in lines if line.startswith("| ") and "---" not in line]
+    assert rows[0].split(" | ")[1:-1] == [
+        "cvar",
+        "chi_square",
+        "penalty",
+        "erm mu=0.0001",
+        "erm mu=0.001",
+    ]
+    assert [row.split(" | ")[0] for row in rows[1:]] == ["| 1", "| 2", "| 4"]
+    assert rows[-1].endswith("| 0.2 +- 0 |")
+    assert lines[-2].startswith("Lowest mean worst-group test loss: cvar 1.2")
+    assert lines[-1] == "Largest mean c4: 0.2 at epoch 1"
 
 
 @pytest.mark.parametrize(
