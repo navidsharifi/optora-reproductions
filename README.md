@@ -35,6 +35,12 @@ library are reported on the Optora issue tracker.
 | [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c3 | group DRO minus ERM worst-group test accuracy, strong L2 penalty | 0.633 | 0.5701 (0) | 1 | 0.2 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
 | [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c4 | group DRO minus ERM worst-group test accuracy, early stopping | 0.793 | 0.672 (0.01338) | 5 | 0.2 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
 | [sagawa2020_group_dro](papers/sagawa2020_group_dro/README.md) | c5 | ERM minus group DRO average test accuracy, mean of the two regimes | -0.0015 | 0.00566 (0) | 1 | 0.03 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c1 | certificate minus test worst-case loss at rho_hat_n, synthetic WRM | 0.0056 | -0.0009066 (0.00296) | 5 | 0.05 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c2 | min over ERM, FGM, IFGM, PGM and WRM of the clean test accuracy | 0.99 | 0.9895 (0.0009423) | 5 | 0.005 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c3 | certificate minus test worst-case loss at rho_hat_n, MNIST WRM | 0.378 | 0.3739 (0.004377) | 5 | 0.15 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c4 | ERM minus WRM test error, l2 PGM attack at the training radius | 0.085 | 0.0915 (0.01378) | 5 | 0.05 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c5 | min over FGM, IFGM and PGM minus WRM test error, linf PGM attack | 0.105 | 0.09406 (0.014) | 5 | 0.07 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
+| [sinha2018_certifiable_robustness](papers/sinha2018_certifiable_robustness/README.md) | c6 | log10 of rho_hat_test(ERM) / rho_hat_test(WRM) at the training gamma | 2.44 | 2.627 (0.07267) | 5 | 0.5 | yes | NVIDIA GeForce RTX 3050 6GB Laptop GPU | 0.4.0 |
 <!-- results-table:end -->
 
 The table is generated from `results/` by `python -m tools.results_table`

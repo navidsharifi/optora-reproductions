@@ -1,0 +1,32 @@
+{
+  "paper_id": "sinha2018_certifiable_robustness",
+  "claim": {
+    "claim_id": "c6",
+    "location": "Figure 4(a), at gamma_adv = gamma, C_2 / gamma = 23.9 (161 vs 0.58)",
+    "metric": "log10 of rho_hat_test(ERM) / rho_hat_test(WRM) at the training gamma",
+    "paper_value": 2.44,
+    "tolerance": 0.5
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    2.61624646149078,
+    2.6792013657207576,
+    2.6707159122756354,
+    2.6655174967854856,
+    2.504979398356534
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-21"
+}

@@ -1,0 +1,32 @@
+{
+  "paper_id": "sinha2018_certifiable_robustness",
+  "claim": {
+    "claim_id": "c4",
+    "location": "Figure 3(a), l2 PGM at eps_adv = sqrt(rho_hat_n) (10.8% vs 2.3%)",
+    "metric": "ERM minus WRM test error, l2 PGM attack at the training radius",
+    "paper_value": 0.085,
+    "tolerance": 0.05
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    0.10480000000000002,
+    0.0824,
+    0.10529999999999999,
+    0.0739,
+    0.0911
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-21"
+}

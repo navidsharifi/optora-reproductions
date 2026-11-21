@@ -69,7 +69,7 @@ addopts = "-q"
 pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["optora_reproductions", "tools", "papers"]
+source = ["optora_reproductions", "tools", "papers", "prototypes"]
 branch = true
 
 [tool.coverage.report]
@@ -90,6 +90,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["optora_reproductions", "papers", "tools", "tests", "conftest.py"]
+files = ["optora_reproductions", "papers", "prototypes", "tools", "tests", "conftest.py"]
 ignore_missing_imports = true
 strict = true

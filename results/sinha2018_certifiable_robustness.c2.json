@@ -1,0 +1,32 @@
+{
+  "paper_id": "sinha2018_certifiable_robustness",
+  "claim": {
+    "claim_id": "c2",
+    "location": "Section 4.2 and Figure 3(a) at eps_adv = 0 (99.0% to 99.2%)",
+    "metric": "min over ERM, FGM, IFGM, PGM and WRM of the clean test accuracy",
+    "paper_value": 0.99,
+    "tolerance": 0.005
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    0.989,
+    0.9884,
+    0.989,
+    0.9906,
+    0.9903
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-21"
+}

@@ -1,0 +1,32 @@
+{
+  "paper_id": "sinha2018_certifiable_robustness",
+  "claim": {
+    "claim_id": "c1",
+    "location": "Figure 2(a), synthetic data, at rho_hat_n(theta_WRM) = 0.062",
+    "metric": "certificate minus test worst-case loss at rho_hat_n, synthetic WRM",
+    "paper_value": 0.0056,
+    "tolerance": 0.05
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "values": [
+    -0.0018741217348628991,
+    -0.004055006702259695,
+    0.003493924674364657,
+    0.0004974069462380659,
+    -0.002595358106303014
+  ],
+  "environment": {
+    "python": "3.13.14",
+    "torch": "2.14.0+cu130",
+    "optora": "0.4.0",
+    "platform": "Windows-11",
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU"
+  },
+  "date": "2026-11-21"
+}
