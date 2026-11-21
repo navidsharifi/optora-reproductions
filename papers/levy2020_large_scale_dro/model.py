@@ -15,6 +15,10 @@ Optora only. The rest follows the authors' `train.py` (fast-dro dc75246).
   $w_t = (\eta + 1)/(t + \eta)$ and $t$ starting at 2, as the authors'
   `utils.average_step`. The full-batch run is not averaged.
 
+The training objective and the per-group test loss are evaluated at the
+same epochs, so the worst-group test loss can be read at any of them and
+not only after the last epoch (Appendix F.5.1).
+
 With `cuda_graphs`, the forward and backward pass of each batch size is
 captured once and replayed. The gradients are persistent tensors that the
 captured pass zeroes and refills, so the optimizer update, which runs
@@ -105,9 +109,14 @@ class Setting:
         batch_size: Minibatch size, or `FULL_BATCH` for the whole set.
         step_size: Constant SGD step.
         weight_decay: Weight decay $\mu$ on the weight.
-        epochs: Passes over the training set.
-        eval_interval: Epochs between evaluations of the training objective.
+        epochs: Passes over the training set, a multiple of `eval_interval`.
+        eval_interval: Epochs between evaluations of the training objective
+            and of the per-group test loss.
         seed: Seed of the initialization and of the shuffling.
+
+    Raises:
+        ValueError: If `epochs` is not a positive multiple of
+            `eval_interval`, so that the last epoch would not be evaluated.
     """
 
     objective: str
@@ -117,6 +126,12 @@ class Setting:
     epochs: int
     eval_interval: int
     seed: int
+
+    def __post_init__(self) -> None:
+        if self.eval_interval < 1 or self.epochs < 1:
+            raise ValueError("epochs and eval_interval must be positive")
+        if self.epochs % self.eval_interval:
+            raise ValueError("epochs must be a multiple of eval_interval")
 
     @property
     def averaged(self) -> bool:
@@ -130,12 +145,13 @@ class Run:
 
     Attributes:
         setting: Hyperparameters of the run.
-        epochs: Epochs after which the training objective was evaluated.
+        epochs: Epochs after which the training objective and the test
+            loss were evaluated. The last one is the last epoch.
         objective: Training objective at those epochs, robust loss of the
             whole training set plus the regularizer.
-        group_loss: Mean test log loss of each of the 20 subgroups after the
-            last epoch, shape `(20,)`, `nan` for a subgroup without test
-            samples.
+        group_loss: Mean test log loss of each of the 20 subgroups at those
+            epochs, shape `(len(epochs), 20)`, `nan` for a subgroup without
+            test samples.
         test_loss: Mean test log loss after the last epoch.
         test_accuracy: Test accuracy after the last epoch.
         seconds_per_epoch: Wall-clock training time per epoch, evaluation
@@ -246,8 +262,8 @@ def _test_metrics(
     features: torch.Tensor,
     targets: torch.Tensor,
     groups: torch.Tensor,
-) -> tuple[torch.Tensor, float, float]:
-    """Return the per-group mean test log loss, the mean loss and the accuracy."""
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Return the per-group and mean test log loss and the accuracy, on device."""
     logits = functional.linear(features, weight, bias)
     per_sample = functional.cross_entropy(logits, targets, reduction="none")
     totals = torch.zeros(NUM_GROUPS, device=features.device).index_add_(
@@ -255,7 +271,7 @@ def _test_metrics(
     )
     counts = torch.bincount(groups, minlength=NUM_GROUPS).to(totals.dtype)
     accuracy = (logits.argmax(dim=-1) == targets).float().mean()
-    return (totals / counts).cpu(), float(per_sample.mean()), float(accuracy)
+    return totals / counts, per_sample.mean(), accuracy
 
 
 def train(
@@ -275,8 +291,10 @@ def train(
             CUDA graphs.
 
     Returns:
-        The evaluated training objective, the test metrics of the reported
-        iterate, and the training time per epoch.
+        The training objective and the per-group test loss of the reported
+        iterate at every evaluation, its mean test loss and accuracy after
+        the last epoch, and the training time per epoch. Every evaluation
+        stays on the device until the run ends.
     """
     features, targets = train_split
     device = features.device
@@ -310,6 +328,8 @@ def train(
     generator = torch.Generator(device=device).manual_seed(setting.seed)
     evaluations = setting.epochs // setting.eval_interval
     history = torch.empty(evaluations, device=device)
+    group_history = torch.empty(evaluations, NUM_GROUPS, device=device)
+    test_loss = test_accuracy = torch.empty((), device=device)
     elapsed = 0.0
     iteration = 1
     for epoch in range(1, setting.epochs + 1):
@@ -333,22 +353,21 @@ def train(
         elapsed += time.perf_counter() - start
         if epoch % setting.eval_interval == 0:
             weight, bias = averaged if setting.averaged else model.parameters()
+            evaluation = epoch // setting.eval_interval - 1
             with torch.no_grad():
-                history[epoch // setting.eval_interval - 1] = _objective_value(
+                history[evaluation] = _objective_value(
                     weight, bias, features, targets, full_loss, setting.weight_decay
                 )
-    weight, bias = averaged if setting.averaged else model.parameters()
-    with torch.no_grad():
-        group_loss, test_loss, test_accuracy = _test_metrics(
-            weight.detach(), bias.detach(), *test_split
-        )
+                group_history[evaluation], test_loss, test_accuracy = _test_metrics(
+                    weight, bias, *test_split
+                )
     return Run(
         setting=setting,
         epochs=torch.arange(1, evaluations + 1) * setting.eval_interval,
         objective=history.cpu(),
-        group_loss=group_loss,
-        test_loss=test_loss,
-        test_accuracy=test_accuracy,
+        group_loss=group_history.cpu(),
+        test_loss=float(test_loss),
+        test_accuracy=float(test_accuracy),
         seconds_per_epoch=elapsed / setting.epochs,
     )
 

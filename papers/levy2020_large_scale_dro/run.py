@@ -44,6 +44,9 @@ RUNS_DIR = REPOSITORY_ROOT / "runs" / PAPER_ID
 TOLERANCE = 0.02
 """Relative distance to the optimal training objective, Table 5."""
 
+REPORTED_EPOCHS = (1, 2, 5, 10, 20, 50, 100, 200)
+"""Epochs listed in the table of claim c4 by epoch, besides the last one."""
+
 Key = tuple[str, int, float, int]
 """A run's objective, batch size, weight decay and seed."""
 
@@ -57,7 +60,8 @@ def settings(config: Config) -> list[Setting]:
     Returns:
         The minibatch runs of every objective, batch size and seed, the
         full-batch run of every objective, and the ERM runs of both weight
-        decays and every seed.
+        decays and every seed. Minibatch and ERM runs are evaluated after
+        every epoch, so their test losses can be compared epoch by epoch.
     """
     minibatch = [
         Setting(
@@ -92,7 +96,7 @@ def settings(config: Config) -> list[Setting]:
             step_size,
             weight_decay,
             config.epochs,
-            config.epochs,
+            1,
             seed,
         )
         for weight_decay, step_size in ERM_STEP_SIZES.items()
@@ -178,48 +182,87 @@ def speed_ups(config: Config, runs: dict[Key, Run], objective: str) -> list[floa
     ]
 
 
-def worst_group_loss(run: Run) -> float:
+def worst_group_curve(run: Run) -> torch.Tensor:
     """Return the mean test log loss of the run's worst subgroup.
 
     A subgroup without test samples has no mean loss and is skipped. Every
     subgroup of the Digits test set has samples.
+
+    Args:
+        run: A training run.
+
+    Returns:
+        The worst-group test loss at every evaluated epoch of the run, in
+        float64, shape `(len(run.epochs),)`.
     """
-    present = run.group_loss[~torch.isnan(run.group_loss)]
-    return float(present.max())
+    return run.group_loss.double().nan_to_num(nan=-torch.inf).amax(dim=-1)
 
 
-def erm_worst_group_loss(runs: dict[Key, Run], config: Config, seed: int) -> float:
-    """Return the lower worst-group test loss of the two ERM runs of `seed`."""
-    return min(
-        worst_group_loss(runs[(ERM, config.erm_batch_size, weight_decay, seed)])
-        for weight_decay in ERM_STEP_SIZES
+def worst_group_loss(run: Run) -> float:
+    """Return the worst-group test loss of the run after the last epoch."""
+    return float(worst_group_curve(run)[-1])
+
+
+def worst_group_curves(
+    config: Config, runs: dict[Key, Run], objective: str, weight_decay: float
+) -> torch.Tensor:
+    """Return the worst-group test loss of every seed of one compared run.
+
+    Args:
+        config: Settings of the experiment.
+        runs: Every run of the experiment.
+        objective: One of `OBJECTIVES`, at `config.comparison_batch_size`, or
+            `ERM`, at `config.erm_batch_size`.
+        weight_decay: Weight decay of the run.
+
+    Returns:
+        Shape `(len(config.seeds), config.epochs)`, one row per seed.
+    """
+    size = config.erm_batch_size if objective == ERM else config.comparison_batch_size
+    return torch.stack(
+        [
+            worst_group_curve(runs[(objective, size, weight_decay, seed)])
+            for seed in config.seeds
+        ]
     )
 
 
-def group_loss_reductions(config: Config, runs: dict[Key, Run]) -> list[float]:
-    """Return claim c4 for every seed.
+def group_loss_reduction_curves(config: Config, runs: dict[Key, Run]) -> torch.Tensor:
+    """Return claim c4 for every seed at every epoch.
+
+    The pre-registered claim is the last column. The other columns apply
+    the same comparison at an earlier epoch, with both the DRO and the ERM
+    runs read at that epoch.
 
     Args:
         config: Settings of the experiment.
         runs: Every run of the experiment.
 
     Returns:
-        Per seed, the relative reduction of the worst-group test loss of
-        each objective at `config.comparison_batch_size` against the better
-        ERM run, averaged over the three objectives.
+        Shape `(len(config.seeds), config.epochs)`. Entry `[s, t - 1]` is
+        the relative reduction of the worst-group test loss of each
+        objective at `config.comparison_batch_size` against the better ERM
+        run, both after epoch `t` with seed `s`, averaged over the three
+        objectives.
     """
-    values = []
-    for seed in config.seeds:
-        baseline = erm_worst_group_loss(runs, config, seed)
-        reductions = [
-            1.0
-            - worst_group_loss(
-                runs[(objective, config.comparison_batch_size, WEIGHT_DECAY, seed)]
-            )
-            / baseline
+    baseline = torch.stack(
+        [
+            worst_group_curves(config, runs, ERM, weight_decay)
+            for weight_decay in ERM_STEP_SIZES
+        ]
+    ).amin(dim=0)
+    robust = torch.stack(
+        [
+            worst_group_curves(config, runs, objective, WEIGHT_DECAY)
             for objective in OBJECTIVES
         ]
-        values.append(statistics.fmean(reductions))
+    )
+    return (1.0 - robust / baseline).mean(dim=0)
+
+
+def group_loss_reductions(config: Config, runs: dict[Key, Run]) -> list[float]:
+    """Return claim c4 for every seed, after the last epoch."""
+    values: list[float] = group_loss_reduction_curves(config, runs)[:, -1].tolist()
     return values
 
 
@@ -289,8 +332,66 @@ def table(config: Config, runs: dict[Key, Run]) -> str:
     return "\n".join(lines)
 
 
+def epoch_table(config: Config, runs: dict[Key, Run]) -> str:
+    """Summarize claim c4 and the worst-group test loss by epoch.
+
+    Args:
+        config: Settings of the experiment.
+        runs: Every run of the experiment.
+
+    Returns:
+        A markdown table with one row per epoch of `REPORTED_EPOCHS` within
+        the budget and one for the last epoch. It lists the worst-group test
+        loss of each objective at `config.comparison_batch_size` and of
+        each ERM run, means over seeds, and claim c4 at that epoch. Two
+        lines below it give the epoch at which each mean is best.
+    """
+    columns = {
+        objective: worst_group_curves(config, runs, objective, WEIGHT_DECAY)
+        for objective in OBJECTIVES
+    }
+    for weight_decay in ERM_STEP_SIZES:
+        columns[f"erm mu={weight_decay:g}"] = worst_group_curves(
+            config, runs, ERM, weight_decay
+        )
+    means = {name: values.mean(dim=0) for name, values in columns.items()}
+    reductions = group_loss_reduction_curves(config, runs)
+    reduction = reductions.mean(dim=0)
+    epochs = sorted(
+        {epoch for epoch in REPORTED_EPOCHS if epoch < config.epochs} | {config.epochs}
+    )
+    lines = [
+        "Worst-group test loss by epoch, means over seeds, and claim c4 "
+        "with both runs read at the same epoch.",
+        "",
+        "| epoch | " + " | ".join(means) + " | c4 |",
+        "| --- |" + " --- |" * (len(means) + 1),
+    ]
+    for epoch in epochs:
+        lines.append(
+            f"| {epoch} | "
+            + " | ".join(f"{float(mean[epoch - 1]):.4g}" for mean in means.values())
+            + f" | {_mean_std(reductions[:, epoch - 1].tolist())} |"
+        )
+    best_loss = ", ".join(
+        f"{name} {float(mean.min()):.4g} at epoch {int(mean.argmin()) + 1}"
+        for name, mean in means.items()
+    )
+    best = int(reduction.argmax())
+    lines += [
+        "",
+        f"Lowest mean worst-group test loss: {best_loss}",
+        f"Largest mean c4: {float(reduction[best]):.4g} at epoch {best + 1}",
+    ]
+    return "\n".join(lines)
+
+
 def curves(runs: dict[Key, Run]) -> list[dict[str, object]]:
-    """Return the training curve and test metrics of every run, for plotting."""
+    """Return the training curve and test metrics of every run, for plotting.
+
+    The entry `group_loss` holds one list of the 20 subgroup test losses per
+    entry of `epochs`.
+    """
     return [
         {
             "objective": run.setting.objective,
@@ -338,7 +439,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     config = load_config(args.config, Config)
 
     runs = measure(config)
-    summary = table(config, runs)
+    summary = table(config, runs) + "\n\n" + epoch_table(config, runs)
     args.table_dir.mkdir(parents=True, exist_ok=True)
     (args.table_dir / f"{args.config.stem}_table.md").write_text(
         summary + "\n", encoding="utf-8"

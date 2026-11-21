@@ -59,7 +59,7 @@ the stated range and its tolerance is half the range.
 | Seeds | 1, 10, 100, 1000 and 1337 for every minibatch and ERM run, seed 1 for each full-batch run (Table 5 ran one full-batch seed) |
 | Robust objectives | `optora.CVaRAmbiguitySet(alpha=0.02)`, `optora.ChiSquareAmbiguitySet(radius=2)` and `optora.PenalizedChiSquareDRO(penalty=0.025)`, each on the uniform distribution of the batch (Optora 0.4.0, which added the penalized objective for this reproduction, optora#116). Optora's $\chi^2$ divergence is $\sum_i (q_i - p_i)^2 / p_i$, twice the paper's, so $\rho = 1$ is radius 2 and $\lambda = 0.05$ is penalty 0.025 |
 | ERM baseline | Batch 500 with $\mu = 10^{-4}$ (step 0.05) and $\mu = 10^{-3}$ (step 0.02), the two values chosen in Appendix F.2. c4 compares each objective at batch 500 with the better of the two for the same seed |
-| Evaluation | The training objective of the averaged iterate after every epoch, every 15 epochs for the full batch as in `mnist_full_batch.yaml`, and the per-group test log loss after the last epoch |
+| Evaluation | The training objective and the per-group test log loss of the averaged iterate after every epoch, every 15 epochs for the full batch as in `mnist_full_batch.yaml`. c4 reads the group losses after the last epoch |
 | Precision | float32, as the authors' code |
 | Hardware | RTX 3050 Laptop 6 GB |
 
@@ -147,9 +147,47 @@ The pre-registered metric uses the better ERM, the left column, and gives
 without naming the ERM run or the epoch, and it reads the range from
 Figure 3, which plots both ERM runs. Our two columns together span 13% to
 26%, close to that range, but this reading was not fixed in advance, so
-it is not counted. The paper also notes that the minibatch methods
-generalize best well before they converge (Appendix F.5.1), while we
-record the group losses after the last epoch only.
+it is not counted.
+
+The paper also notes that the minibatch methods generalize best well
+before they converge (Appendix F.5.1). To see whether its range belongs to
+an earlier epoch, we reran the full configuration on 2026-11-21 with the
+per-group test loss recorded after every epoch, for the DRO and the ERM
+runs alike (issue #8). The rerun gives the same per-seed values of c1 to
+c4 bit for bit, so the records in `results/` are unchanged. The table
+below applies the pre-registered comparison at each epoch, with the DRO
+runs at $n = 500$ and the better ERM both read at that epoch. Losses are
+means over the five seeds, and c4 is the mean with its sample standard
+deviation.
+
+| Epoch | CVaR | $\chi^2$ ball | Penalized $\chi^2$ | ERM, $\mu = 10^{-4}$ | ERM, $\mu = 10^{-3}$ | c4 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.584 | 0.634 | 0.620 | 1.974 | 0.975 | 0.370 (0.038) |
+| 5 | 0.392 | 0.433 | 0.419 | 0.865 | 0.673 | 0.384 (0.010) |
+| 10 | 0.354 | 0.384 | 0.376 | 0.605 | 0.556 | 0.332 (0.013) |
+| 20 | 0.345 | 0.354 | 0.350 | 0.484 | 0.462 | 0.243 (0.011) |
+| 50 | 0.344 | 0.343 | 0.343 | 0.446 | 0.415 | 0.172 (0.004) |
+| 100 | 0.347 | 0.340 | 0.342 | 0.446 | 0.405 | 0.153 (0.004) |
+| 300 | 0.349 | 0.338 | 0.339 | 0.454 | 0.402 | 0.149 (0.001) |
+
+The mean c4 lies inside the stated range of 17.5% to 27% from epoch 17 to
+epoch 47, and it peaks at 0.394 at epoch 4. The ERM run with
+$\mu = 10^{-3}$ is the better baseline at every epoch and in every seed.
+The large early values say more about speed than about robustness. In the
+first ten epochs ERM has not yet fit the typed digit 9, whose test loss
+starts near 1 for $\mu = 10^{-3}$ and near 2 for $\mu = 10^{-4}$, while
+the DRO objectives weight the samples of highest loss more from the first
+step.
+After about epoch 50 every run changes little. The lowest worst-group
+loss of each run over all epochs, which is what early stopping on this
+metric would select, gives about 16% against the better ERM, close to
+the final value. So the paper's range matches our curves read between
+epochs 17 and 47, but a reduction above 17.5% that persists to
+convergence does not appear in our runs. The pre-registered c4 stays
+not reproduced. The complete table is in
+`runs/levy2020_large_scale_dro/full_table.md`, and the losses of all 20
+groups at every evaluation are in `full_curves.json`. The files of the
+first run are kept next to them with the suffix `_2026-11-18`.
 
 The average test metrics agree with Appendix F.5.1 in accuracy but not in
 loss. DRO reaches a test accuracy of 0.970 to 0.973 against 0.969 to 0.972

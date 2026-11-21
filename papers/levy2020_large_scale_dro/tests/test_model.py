@@ -112,7 +112,7 @@ def test_training_lowers_the_objective(objective: str) -> None:
 
     assert result.objective.shape == (6,)
     assert result.objective[-1] < result.objective[0]
-    assert result.group_loss.shape == (NUM_GROUPS,)
+    assert result.group_loss.shape == (6, NUM_GROUPS)
     assert 0.0 <= result.test_accuracy <= 1.0
 
 
@@ -142,8 +142,34 @@ def test_full_batch_is_evaluated_at_the_interval_and_not_averaged() -> None:
     result = train(setting, train_split, test_split, False)
 
     assert result.epochs.tolist() == [3, 6]
+    assert result.group_loss.shape == (2, NUM_GROUPS)
     assert not setting.averaged
     assert _setting().averaged
+
+
+def test_group_loss_is_recorded_at_every_evaluation() -> None:
+    train_split, test_split = _splits()
+    short = train(_setting(epochs=2), train_split, test_split, False)
+    long = train(_setting(epochs=4), train_split, test_split, False)
+
+    # The small synthetic test set leaves some subgroups empty, hence nan.
+    assert torch.allclose(long.group_loss[:2], short.group_loss, equal_nan=True)
+    assert not torch.allclose(long.group_loss[1], long.group_loss[3], equal_nan=True)
+
+
+@pytest.mark.parametrize(
+    ("epochs", "eval_interval", "message"),
+    [
+        (0, 1, "must be positive"),
+        (3, 0, "must be positive"),
+        (5, 2, "multiple of eval_interval"),
+    ],
+)
+def test_setting_needs_the_last_epoch_evaluated(
+    epochs: int, eval_interval: int, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _setting(epochs=epochs, eval_interval=eval_interval)
 
 
 def test_averaging_weight_follows_shamir_and_zhang() -> None:
@@ -171,7 +197,7 @@ def _run(values: list[float], epochs: int = 4) -> Run:
         setting=_setting(epochs=epochs),
         epochs=torch.arange(1, len(values) + 1),
         objective=torch.tensor(values),
-        group_loss=torch.zeros(NUM_GROUPS),
+        group_loss=torch.zeros(len(values), NUM_GROUPS),
         test_loss=0.0,
         test_accuracy=0.0,
         seconds_per_epoch=0.0,
